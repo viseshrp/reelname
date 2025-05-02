@@ -1,5 +1,6 @@
 [project]
 name = "reelname"
+dynamic = ["version"]
 description = "A tool to fix media file names"
 authors = [{ name = "Visesh Prasad", email = "viseshrprasad@gmail.com" }]
 readme = "README.md"
