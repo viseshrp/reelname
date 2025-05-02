@@ -19,7 +19,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # important for hatch-vcs to see full Git history and tags
+          fetch-depth: 0  # Required for hatch-vcs to generate full version
+          fetch-tags: true
 
       - name: Set up Python Environment
         uses: ./.github/actions/setup-python-env
