@@ -1,6 +1,5 @@
 [project]
 name = "reelname"
-version = "0.0.1"
 description = "A tool to fix media file names"
 authors = [{ name = "Visesh Prasad", email = "viseshrprasad@gmail.com" }]
 readme = "README.md"
@@ -29,7 +28,6 @@ Documentation = "https://viseshrp.github.io/reelname/"
 [project.scripts]
 reelname = "reelname.cli:main"
 
-
 [dependency-groups]
 dev = [
     "pre-commit>=4.2.0",
@@ -53,7 +51,6 @@ path = "reelname/_version.py"
 [tool.hatch.version.raw-options]
 version_scheme = "guess-next-dev"
 local_scheme = "datetime"
-fallback_version = "0.1.0"
 
 [tool.mypy]
 files = [
@@ -156,7 +153,7 @@ force-sort-within-sections = true
 
 [tool.codespell]
 ignore-words = "codespell.txt"
-skip = '*.pyc,*.xml,*.gif,*.png,*.jpg,*.js,*.html,*.json,*.gz'
+skip = '*.pyc,*.xml,*.gif,*.png,*.jpg,*.js,*.html,*.json,*.gz,Makefile'
 quiet-level = 3
 
 [tool.bandit]
@@ -178,10 +175,8 @@ skipsdist = true
 [tool.tox.root]
 skipsdist = true
 
-
 [tool.tox-gh-actions]
 python = { "3.9" = "py39", "3.10" = "py310", "3.11" = "py311", "3.12" = "py312", "3.13" = "py313" }
-
 
 [tool.tox.env.py39]
 pass_env = ["PYTHON_VERSION"]

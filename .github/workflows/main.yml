@@ -76,6 +76,9 @@ jobs:
       - name: Set up Python + Environment
         uses: ./.github/actions/setup-python-env
 
+      - name: Run version checks
+        run: make check-version
+
       - name: Build project
         run: make build
 
