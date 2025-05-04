@@ -50,7 +50,7 @@ repos:
     rev: v0.44.0
     hooks:
       - id: markdownlint
-        args: [ --fix ]
+        args: [ --fix, --disable, MD024 ]
 
   # 🧱 Local system hooks (for tools with no mirrors or your preference)
   - repo: local
