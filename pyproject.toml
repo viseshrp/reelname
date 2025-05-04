@@ -68,19 +68,21 @@ warn_return_any = true
 warn_unused_ignores = true
 show_error_codes = true
 ignore_missing_imports = true
+follow_imports = "silent"
+disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 tmp_path_retention_policy = "failed"
 testpaths = ["tests"]
 addopts = "--capture=tee-sys --tb=native -p no:warnings -vv"
-markers =[
+markers = [
     "integration:Run integration tests",
     "smoke:Run the smoke tests",
     "unit:Run the unit tests",
 ]
-norecursedirs =[
-  ".git",
-  ".idea",
+norecursedirs = [
+    ".git",
+    ".idea",
 ]
 filterwarnings = [
     "ignore:.+:DeprecationWarning"
@@ -167,7 +169,7 @@ recursive = true
 number = 3
 severity_level = "high"
 require_serial = true
-exclude_dirs = [ "venv/*", ".venv/*", "tests/*"]
+exclude_dirs = ["venv/*", ".venv/*", "tests/*"]
 
 [tool.pre-commit.default_language_versions]
 python = "3.11"
@@ -187,9 +189,9 @@ python = { "3.9" = "py39", "3.10" = "py310", "3.11" = "py311", "3.12" = "py312",
 pass_env = ["PYTHON_VERSION"]
 allowlist_externals = ["uv"]
 commands = [
-  ["uv", "sync", "--python", "{envpython}"],
-  ["uv", "run", "python", "-m", "pytest", "tests"],
-  ["uv", "run", "mypy"]
+    ["uv", "sync", "--python", "{envpython}"],
+    ["uv", "run", "python", "-m", "pytest", "tests"],
+    ["uv", "run", "mypy"]
 ]
 
 [tool.tox.env.py310]
