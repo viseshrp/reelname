@@ -28,13 +28,13 @@ async def _process_files(directory: Path) -> None:
     """
     for file in directory.iterdir():
         if file.is_file():
-            new_name: str = remove_url_prefix(file.name)
+            new_name = remove_url_prefix(file.name)
             if new_name != file.name:
-                new_path: Path = file.parent / new_name
+                new_path = file.parent / new_name
                 await _rename_file_async(str(file), str(new_path))
-                click.echo(f"✅ Renamed: {file.name} → {new_name}")
+                click.echo(f"✅ Renamed: {file.name!s} → {new_name!s}")
             else:
-                click.echo(f"⏩ Skipping: {file.name}")
+                click.echo(f"⏩ Skipping: {file.name!s}")
 
 
 class FileChangeHandler(FileSystemEventHandler):
@@ -47,5 +47,5 @@ class FileChangeHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent) -> None:
         if not event.is_directory:
-            click.echo(f"🔔 Detected new file: {event.src_path}")
+            click.echo(f"🔔 Detected new file: {event.src_path!s}")
             asyncio.run_coroutine_threadsafe(_process_files(self.directory), self.loop)

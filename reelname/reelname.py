@@ -4,20 +4,20 @@ from pathlib import Path
 import click
 from watchdog.observers import Observer
 
-from .utils import FileChangeHandler, _process_files
+from .utils import FileChangeHandler
 
 
 def watch_directory(directory: str) -> None:
     """
     Watch `directory` for new files and strip URL-like prefixes from filenames.
     """
-    dir_path: Path = Path(directory)
-    loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
-    handler: FileChangeHandler = FileChangeHandler(dir_path, loop)
-    observer: Observer = Observer()
+    dir_path = Path(directory)
+    loop = asyncio.get_event_loop()
+    handler = FileChangeHandler(dir_path, loop)
+    observer = Observer()
     observer.schedule(handler, str(dir_path), recursive=False)
     observer.start()
-    click.echo(f"👀 Watching: {dir_path}")
+    click.echo(f"👀 Watching: {dir_path!s}")
 
     try:
         loop.run_forever()
