@@ -15,7 +15,7 @@ from .reelname import watch_directory
 )
 def main(directory: str) -> None:
     """
-    A tool to watch a directory and clean media filenames by removing URL prefixes.
+    A tool to watch a directory and clean new media filenames.
 
     \b
     Example usage:

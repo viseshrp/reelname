@@ -11,19 +11,9 @@
 
 > A tool to fix media file names
 
-![Demo](https://raw.githubusercontent.com/viseshrp/reelname/main/demo.gif)
-
-## 🚀 Why this project exists
-
-Explain the problem this tool solves or the goal it's intended to fulfill.
-
-## 🧠 How this project works
-
-Explain how the tool works.
-
 ## 🛠️ Features
 
-* Does stuff
+* Fixes media filenames with random characters.
 
 ## 📦 Installation
 
