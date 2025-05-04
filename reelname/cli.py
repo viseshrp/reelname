@@ -1,30 +1,26 @@
-"""Console script for reelname."""
-
 import click
 
-from . import __version__ as _version
-from .reelname import do_stuff
+from ._version import __version__
+from .reelname import watch_directory
 
 
-@click.argument(
-    "stuff",
-    metavar="<what_you_worked_on>",
-    nargs=-1,
-    required=False,
-    type=click.STRING,
-)
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(_version, "-v", "--version")
-def main(stuff: str) -> None:
+@click.version_option(__version__, "-v", "--version")
+@click.argument(
+    "directory",
+    metavar="<directory>",
+    nargs=1,
+    required=False,
+    type=click.Path(exists=True, file_okay=False),
+)
+def main(directory: str) -> None:
     """
-    A tool to fix media file names
+    A tool to watch a directory and clean media filenames by removing URL prefixes.
 
     \b
-    Example usages:
-
+    Example usage:
+      reelname /mnt/media/downloads
     """
-    do_stuff(stuff)
-
-
-if __name__ == "__main__":
-    main()  # pragma: no cover
+    if not directory:
+        directory = "."
+    watch_directory(directory)

@@ -7,7 +7,7 @@ All exceptions used in the code base are defined here.
 from __future__ import annotations
 
 
-class CustomException(Exception):
+class ReelNameError(Exception):
     """
     Base exception. All other exceptions
     inherit from here.
