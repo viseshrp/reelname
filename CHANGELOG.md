@@ -23,13 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -
 
-## [1.0.0] - 2025-04-30
+## [1.0.0] - 2025-05-04
 
 ### Added
 
 - First release
 - Ability to run fixer on a list of files in a directory
-- Auto runs when it detects changes in the directory
+- Auto run when changes are detected in the directory
 
 ## [0.0.1] - 2025-04-30
 
