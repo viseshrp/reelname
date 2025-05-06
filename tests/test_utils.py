@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from reelname.utils import extract_title_and_year, rebuild_filename

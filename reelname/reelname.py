@@ -24,7 +24,7 @@ class FileChangeHandler(FileSystemEventHandler):
 
 def watch_directory(directory: str) -> None:
     """
-    Start watching `directory` for new files and perform IMDb-based renaming.
+    Continuously watch `directory` and perform IMDb-based renaming.
     """
     dir_path = Path(directory)
     loop = asyncio.get_event_loop()
@@ -40,3 +40,13 @@ def watch_directory(directory: str) -> None:
         click.echo("👋 Stopping watcher...")
         observer.stop()
     observer.join()
+
+
+def run_once(directory: str) -> None:
+    """
+    Perform a single-pass scan of `directory` and rename matching files.
+    """
+    dir_path = Path(directory)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(_process_files(dir_path))
+    click.echo("✅ Run-once processing complete.")

@@ -131,6 +131,9 @@ select = [
 ]
 ignore = [
     "C901", # Function is too complex
+    "UP007", # Can't be used with py39
+    "UP006", # Unsafe (tuple[] support is runtime-only in 3.9)
+    "UP035", # Unsafe removal of typing.Tuple
 ]
 
 [tool.ruff.lint.mccabe]

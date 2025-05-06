@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 import re
 from typing import Optional, Tuple
@@ -33,10 +32,9 @@ def fetch_official_title_imdb(title: str, year: str) -> Optional[str]:
     """
     Look up the title on IMDb via Cinemagoer.
     1) Search 'title year' exactly.
-    2) If no exact, fallback to pure title + fuzzy match.
+    2) Fallback to pure title + fuzzy match.
     """
     ia = Cinemagoer()
-    # 1) Exact query
     results = ia.search_movie(f"{title} {year}")
     for movie in results:
         if movie.get("year") == int(year):
@@ -45,14 +43,11 @@ def fetch_official_title_imdb(title: str, year: str) -> Optional[str]:
             if isinstance(title_result, str):
                 return title_result
 
-    # 2) Fuzzy fallback
     results = ia.search_movie(title)
     best, best_score = None, 0
     for movie in results:
         if movie.get("year") == int(year):
             candidate = movie.get("title", "")
-            if not isinstance(candidate, str):
-                continue
             score = fuzz.token_set_ratio(title, candidate)
             if score > best_score:
                 best, best_score = movie, score
@@ -81,8 +76,7 @@ async def _rename_file_async(old_path: str, new_path: str) -> None:
 
 async def _process_files(directory: Path) -> None:
     """
-    Scan `directory` for new files, extract title+year, find the IMDb official
-    title, and rename accordingly.
+    Scan `directory` for files, extract title+year, look up IMDb title, and rename.
     """
     for file in directory.iterdir():
         if not file.is_file():
