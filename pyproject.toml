@@ -182,7 +182,7 @@ pass_env = ["PYTHON_VERSION"]
 allowlist_externals = ["uv"]
 commands = [
     ["uv", "sync", "--python", "{envpython}"],
-    ["uv", "run", "python", "-m", "pytest", "-rvx", "--setup-show", "tests"],
+    ["uv", "run", "python", "-m", "pytest", "tests"],
 ]
 
 [tool.tox.env.py310]

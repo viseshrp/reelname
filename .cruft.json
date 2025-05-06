@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/viseshrp/yapc",
-  "commit": "b293df8f28d0d32eb0d493a4f39aaad695f66668",
+  "commit": "84fb856d4fd400a4b0339c04cb852f99db4f728a",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -17,7 +17,7 @@
       "github_actions": "y",
       "publish_to_pypi": "y",
       "_template": "https://github.com/viseshrp/yapc",
-      "_commit": "b293df8f28d0d32eb0d493a4f39aaad695f66668"
+      "_commit": "84fb856d4fd400a4b0339c04cb852f99db4f728a"
     }
   },
   "directory": null,

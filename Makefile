@@ -31,7 +31,7 @@ test: ## Run tests using tox
 .PHONY: test-local
 test-local: ## Run tests in current Python environment using uv
 	@echo "🚀 Testing code locally"
-	uv run python -m pytest -rvx --setup-show tests
+	uv run python -m pytest -rvx tests
 
 .PHONY: build
 build: clean ## Build package using uv
