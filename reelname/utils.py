@@ -63,11 +63,24 @@ def fetch_official_title_imdb(title: str, year: str) -> Optional[str]:
 def rebuild_filename(original: str, official: str, year: str) -> str:
     """
     Reconstruct the filename as:
-      OfficialTitle (Year) + everything after the first '(Year)' in the original.
+      OfficialTitle (Year) + suffix.
+
+    - If the filename used a bracketed year (e.g. "(2020)"), preserves the exact suffix (including the dot).
+    - Otherwise (dot-year cases), strips any leading dots/underscores/dashes/spaces from the suffix
+      and replaces them with a single space.
     """
-    parts = re.split(r"\(\s*" + re.escape(year) + r"\s*\)", original, maxsplit=1)
-    suffix = parts[1] if len(parts) > 1 else ""
-    return f"{official} ({year}){suffix}"
+    bracket = f"({year})"
+    if bracket in original:
+        # Preserve everything after "(Year)" exactly
+        suffix = original.split(bracket, 1)[1]
+        return f"{official} {bracket}{suffix}"
+
+    # Dot-year case: split on the year itself
+    parts = original.split(year, 1)
+    suffix = parts[1]
+    # Replace any leading punctuation/whitespace with a single space
+    suffix_clean = re.sub(r'^[\s._-]+', ' ', suffix)
+    return f"{official} ({year}){suffix_clean}"
 
 
 async def _rename_file_async(old_path: str, new_path: str) -> None:
