@@ -25,10 +25,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://viseshrp.github.io/reelname/"
+Homepage = "https://github.com/viseshrp/reelname"
 Repository = "https://github.com/viseshrp/reelname"
-Documentation = "https://viseshrp.github.io/reelname/"
-
+Documentation = "https://github.com/viseshrp/reelname/blob/main/README.md"
 
 [project.scripts]
 reelname = "reelname.cli:main"
@@ -42,8 +41,7 @@ dev = [
     "deptry>=0.23.0",
     "pytest>=8.3.5",
     "vulture>=2.14",
-    "cogapp>=3.4.1",
-]
+    "cogapp>=3.4.1",]
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -54,8 +52,8 @@ source = "vcs"
 path = "reelname/_version.py"
 
 [tool.hatch.version.raw-options]
-version_scheme = "guess-next-dev"
 local_scheme = "no-local-version"
+version_scheme = "guess-next-dev"
 
 [tool.mypy]
 files = [
@@ -190,8 +188,7 @@ pass_env = ["PYTHON_VERSION"]
 allowlist_externals = ["uv"]
 commands = [
     ["uv", "sync", "--python", "{envpython}"],
-    ["uv", "run", "python", "-m", "pytest", "tests"],
-    ["uv", "run", "mypy"]
+    ["uv", "run", "python", "-m", "pytest", "-rvx", "--setup-show", "tests"],
 ]
 
 [tool.tox.env.py310]

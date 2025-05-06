@@ -1,4 +1,4 @@
-name: Auto-merge Pre-commit Updates
+name: Pre-commit Automerge
 
 on:
   workflow_dispatch:

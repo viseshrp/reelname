@@ -5,6 +5,10 @@ on:
     - cron: '0 4 * * 1'  # Every Monday at 11 PM Eastern / 4 AM UTC
   workflow_dispatch:
 
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   autoupdate:
     name: Autoupdate Pre-commit Hooks
