@@ -2,14 +2,29 @@ import asyncio
 from pathlib import Path
 
 import click
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from .utils import FileChangeHandler
+from .utils import _process_files
+
+
+class FileChangeHandler(FileSystemEventHandler):
+    """Trigger _process_files when new files appear."""
+
+    def __init__(self, directory: Path, loop: asyncio.AbstractEventLoop) -> None:
+        super().__init__()
+        self.directory = directory
+        self.loop = loop
+
+    def on_created(self, event: FileSystemEvent) -> None:
+        if not event.is_directory:
+            click.echo(f"🔔 Detected new file: {event.src_path!s}")
+            asyncio.run_coroutine_threadsafe(_process_files(self.directory), self.loop)
 
 
 def watch_directory(directory: str) -> None:
     """
-    Watch `directory` for new files and strip URL-like prefixes from filenames.
+    Start watching `directory` for new files and perform IMDb-based renaming.
     """
     dir_path = Path(directory)
     loop = asyncio.get_event_loop()

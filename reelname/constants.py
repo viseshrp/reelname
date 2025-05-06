@@ -1,2 +1,8 @@
-# Pattern to strip leading domain-like prefixes from filenames
-URL_PREFIX_PATTERN: str = r"^[\s._-]*(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}[\s._-]*"
+import re
+from re import Pattern
+
+# Matches “Title (2023)” with any bracket type
+BRACKETED_PATTERN: Pattern[str] = re.compile(r"(?P<title>.+?)\s*[\(\[\{<](?P<year>\d{4})[\)\]\}>]")
+
+# Matches “Title.2023.” style (e.g. for TV episodes/seasons)
+DOT_YEAR_PATTERN: Pattern[str] = re.compile(r"^(?P<title>.+?)\.(?P<year>\d{4})\.")

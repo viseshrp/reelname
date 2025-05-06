@@ -9,7 +9,9 @@ requires-python = ">=3.9,<4.0"
 dependencies = [
     "click>=8.1.1",
     "watchdog>=6.0.0",
-    "aiofiles>=24.1.0"
+    "aiofiles>=24.1.0",
+    "cinemagoer>=2023.5.1",
+    "thefuzz>=0.22.1",
 ]
 license = { text = "MIT" }
 classifiers = [
@@ -41,7 +43,8 @@ dev = [
     "deptry>=0.23.0",
     "pytest>=8.3.5",
     "vulture>=2.14",
-    "cogapp>=3.4.1",]
+    "cogapp>=3.4.1",
+]
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -85,7 +88,6 @@ norecursedirs = [
 filterwarnings = [
     "ignore:.+:DeprecationWarning"
 ]
-
 
 [tool.ruff]
 target-version = "py39"
@@ -140,6 +142,9 @@ ignore = [
     "N802", # Function name should be lowercase
     "N818", # Exception name should end in 'Error'
     "F401", # Imported but unused
+    "UP007",  # Requires Python 3.10 (`X | Y` syntax)
+    "UP006",  # Unsafe: Tuple[...] → tuple[...]
+    "UP035",  # Unsafe: typing.Tuple → tuple
 ]
 
 [tool.ruff.lint.mccabe]

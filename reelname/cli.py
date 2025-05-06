@@ -15,11 +15,12 @@ from .reelname import watch_directory
 )
 def main(directory: str) -> None:
     """
-    A tool to watch a directory and clean new media filenames.
+    A tool to watch a directory and rename media files by fetching
+    official titles from IMDb.
 
     \b
     Example usage:
-      reelname /mnt/media/downloads
+      reelname /path/to/media
     """
     if not directory:
         directory = "."
