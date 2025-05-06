@@ -94,6 +94,7 @@ target-version = "py39"
 line-length = 120
 fix = true
 exclude = [".venv", "__init__.py"]
+ignore = ["PGH003"]
 
 [tool.ruff.lint]
 select = [
@@ -129,22 +130,7 @@ select = [
     "TRY",
 ]
 ignore = [
-    "E501", # Line too long
-    "E731", # Do not assign a lambda expression
-    "E203", # Whitespace before ':'
-    "W605", # Invalid escape sequence
-    "F821", # Undefined name
     "C901", # Function is too complex
-    "B904", # Exception chaining advice
-    "N813", # CamelCase imported as lowercase
-    "B903", # Suggest using __slots__ or immutability
-    "N801", # Class name should use CapWords
-    "N802", # Function name should be lowercase
-    "N818", # Exception name should end in 'Error'
-    "F401", # Imported but unused
-    "UP007",  # Requires Python 3.10 (`X | Y` syntax)
-    "UP006",  # Unsafe: Tuple[...] → tuple[...]
-    "UP035",  # Unsafe: typing.Tuple → tuple
 ]
 
 [tool.ruff.lint.mccabe]
