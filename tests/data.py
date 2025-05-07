@@ -1,3 +1,5 @@
+# tests/data.py
+
 # Files we expect to rename, plus their expected new names
 MOVIE_RENAME_CASES = [
     (
@@ -16,7 +18,6 @@ MOVIE_RENAME_CASES = [
         "The.Studio.2025.S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
         "The Studio (2025) S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
     ),
-    # Newly added cases:
     (
         "The.Dark.Knight[2008]DvDrip-aXXo",
         "The Dark Knight [2008]DvDrip-aXXo",
@@ -28,6 +29,11 @@ MOVIE_RENAME_CASES = [
     (
         "The Straight Story 1999 REMASTERED 1080p BluRay HEVC x265 5.1 BONE.mkv",
         "The Straight Story (1999) REMASTERED 1080p BluRay HEVC x265 5.1 BONE.mkv",
+    ),
+    # **New TamilMV example**:
+    (
+        "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
+        "Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
     ),
 ]
 
@@ -55,5 +61,10 @@ EXTRACT_CASES = [
     (
         "The.Studio.2025.S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
         ("The Studio", "2025"),
+    ),
+    # And our new TamilMV example:
+    (
+        "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
+        ("Bajirao Mastani", "2015"),
     ),
 ] + [(fn, None) for fn in SKIP_CASES]

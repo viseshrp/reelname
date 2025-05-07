@@ -102,32 +102,44 @@ async def _rename_file_async(old_path: str, new_path: str) -> None:
 
 async def _process_files(directory: Path) -> None:
     """
-    Scan `directory` for files, skipping already-formatted ones,
-    extract title+year, look up IMDb info, and rename accordingly.
+    Scan `directory` for files, drop any prefix up to the movie title/year,
+    skip already-formatted ones, lookup IMDb, and rename accordingly.
     """
     for file in directory.iterdir():
         if not file.is_file():
             continue
 
-        raw_name = file.name
+        orig = file.name
 
-        # Skip files already starting with "Title (Year)" or "Title [Year]" etc.
-        if BRACKETED_PATTERN.match(raw_name):
-            click.echo(f"⏩ Skipping already formatted: {raw_name!s}")
+        # 1) Find the first occurrence of any of our three patterns:
+        match = (
+            BRACKETED_PATTERN.search(orig)
+            or DOT_YEAR_PATTERN.search(orig)
+            or SPACE_YEAR_PATTERN.search(orig)
+        )
+        if not match:
+            click.echo(f"⏩ Skipping (no title/year): {orig}")
             continue
 
-        info = extract_title_and_year(raw_name)
-        if not info:
-            click.echo(f"⏩ Skipping (no title/year): {raw_name!s}")
+        # 2) Drop everything before the match (i.e. strip generic prefix)
+        cleaned = orig[match.start():]
+
+        # 3) If it already starts with "Title (Year)" or "Title [Year]" etc., skip
+        if BRACKETED_PATTERN.match(cleaned):
+            click.echo(f"⏩ Skipping already formatted: {orig}")
             continue
 
-        raw_title, extracted_year = info
+        # 4) Extract title & year from the cleaned string
+        raw_title, extracted_year = extract_title_and_year(cleaned)  # this will succeed
         click.echo(f"🔎 Looking up: {raw_title!s} ({extracted_year})")
+
+        # 5) IMDb lookup (returns at least (title, year))
         official_title, imdb_year = fetch_info_from_imdb(raw_title, extracted_year)
 
-        new_name = rebuild_filename(raw_name, official_title, imdb_year)
-        if new_name != raw_name:
-            await _rename_file_async(str(file), str(file.parent / new_name))
-            click.echo(f"✅ Renamed: {raw_name!s} → {new_name!s}")
+        # 6) Rebuild the cleaned filename, then rename the original to that
+        new_cleaned = rebuild_filename(cleaned, official_title, imdb_year)
+        if new_cleaned != cleaned:
+            await _rename_file_async(str(file), str(file.parent / new_cleaned))
+            click.echo(f"✅ Renamed: {orig!s} → {new_cleaned!s}")
         else:
-            click.echo(f"⏩ Already correct: {raw_name!s}")
+            click.echo(f"⏩ Already correct: {orig!s}")

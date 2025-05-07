@@ -5,7 +5,8 @@ import pytest
 
 from reelname import __version__, cli
 from reelname.cli import main
-from tests.data import MOVIE_RENAME_CASES, SKIP_CASES
+
+from .data import MOVIE_RENAME_CASES, SKIP_CASES
 
 
 @pytest.mark.parametrize("options", [["-h"], ["--help"]])
