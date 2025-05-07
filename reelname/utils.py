@@ -7,57 +7,65 @@ import click
 from imdb import Cinemagoer
 from thefuzz import fuzz
 
-from .constants import BRACKETED_PATTERN, DOT_YEAR_PATTERN
+from .constants import BRACKETED_PATTERN, DOT_YEAR_PATTERN, SPACE_YEAR_PATTERN
 
 
 def extract_title_and_year(filename: str) -> Optional[Tuple[str, str]]:
     """
     Extract a human-friendly title and year from the filename.
-    Tries bracketed (e.g. 'Name (2023)') then dot-separated (e.g. 'Name.2023.').
+    Tries in order:
+      1) bracketed (e.g. 'Name (2023)', 'Name[2023]')
+      2) dot-separated (e.g. 'Name.2023.')
+      3) space-separated (e.g. 'Name 2023 ...')
+    Returns (clean_title, year) or None.
     """
     match = BRACKETED_PATTERN.search(filename)
     if not match:
         match = DOT_YEAR_PATTERN.search(filename)
     if not match:
+        match = SPACE_YEAR_PATTERN.search(filename)
+    if not match:
         return None
 
     raw_title = match.group("title").strip()
     year = match.group("year")
-    # Replace dots/underscores with spaces
     clean_title = re.sub(r"[._]+", " ", raw_title)
     return clean_title, year
 
 
-def fetch_official_title_imdb(title: str, year: str) -> Optional[str]:
+def fetch_info_from_imdb(title: str, year: str) -> Tuple[str, str]:
     """
-    Look up the title on IMDb via Cinemagoer.
-    1) Search 'title year' exactly.
-    2) Fallback to pure title + fuzzy match.
+    Look up the title on IMDb via Cinemagoer:
+      - Search IMDb for the raw title.
+      - Keep only candidates whose year == extracted year.
+      - Use fuzzy matching (threshold 60) to pick the best.
+      - If found, return (official_title, imdb_year).
+      - Otherwise, fall back to the extracted (title, year).
     """
     ia = Cinemagoer()
-    results = ia.search_movie(f"{title} {year}")
-    for movie in results:
-        if movie.get("year") == int(year):
-            ia.update(movie)
-            title_result = movie.get("title")
-            if isinstance(title_result, str):
-                return title_result
-
     results = ia.search_movie(title)
-    best, best_score = None, 0
-    for movie in results:
-        if movie.get("year") == int(year):
-            candidate = movie.get("title", "")
-            score = fuzz.token_set_ratio(title, candidate)
-            if score > best_score:
-                best, best_score = movie, score
 
-    if best and best_score >= 60:
-        ia.update(best)
-        title_result = best.get("title")
-        if isinstance(title_result, str):
-            return title_result
-    return None
+    best_match = None
+    best_score = 0
+    for movie in results:
+        mov_year = movie.get("year")
+        if mov_year != int(year):
+            continue
+        candidate = movie.get("title", "")
+        score = fuzz.token_set_ratio(title, candidate)
+        if score > best_score:
+            best_score = score
+            best_match = movie
+            if score == 100:
+                break
+
+    if best_match and best_score >= 60:
+        ia.update(best_match)
+        official = best_match.get("title", title)
+        imdb_year = str(best_match.get("year", int(year)))
+        return official, imdb_year
+
+    return title, year
 
 
 def rebuild_filename(original: str, official: str, year: str) -> str:
@@ -65,21 +73,26 @@ def rebuild_filename(original: str, official: str, year: str) -> str:
     Reconstruct the filename as:
       OfficialTitle (Year) + suffix.
 
-    - If the filename used a bracketed year (e.g. "(2020)"), preserves the exact suffix (including the dot).
-    - Otherwise (dot-year cases), strips any leading dots/underscores/dashes/spaces from the suffix
-      and replaces them with a single space.
+    - If the filename had a bracketed year (any of (), [], {}, <>),
+      preserves the exact bracket type and the following suffix.
+    - Otherwise (dot-year or space-year cases), strips leading punctuation
+      from the suffix and replaces it with a single space.
     """
-    bracket = f"({year})"
-    if bracket in original:
-        # Preserve everything after "(Year)" exactly
-        suffix = original.split(bracket, 1)[1]
-        return f"{official} {bracket}{suffix}"
+    # 1) Detect any bracket pair around the year
+    bracket_match = re.search(
+        r"(?P<open>[\(\[\{\<])" + re.escape(year) + r"(?P<close>[\)\]\}\>])", original
+    )
+    if bracket_match:
+        open_b = bracket_match.group("open")
+        close_b = bracket_match.group("close")
+        bracket_text = f"{open_b}{year}{close_b}"
+        suffix = original.split(bracket_text, 1)[1]
+        return f"{official} {bracket_text}{suffix}"
 
-    # Dot-year case: split on the year itself
+    # 2) Otherwise split on the year itself
     parts = original.split(year, 1)
     suffix = parts[1]
-    # Replace any leading punctuation/whitespace with a single space
-    suffix_clean = re.sub(r'^[\s._-]+', ' ', suffix)
+    suffix_clean = re.sub(r"^[\s._-]+", " ", suffix)
     return f"{official} ({year}){suffix_clean}"
 
 
@@ -89,26 +102,30 @@ async def _rename_file_async(old_path: str, new_path: str) -> None:
 
 async def _process_files(directory: Path) -> None:
     """
-    Scan `directory` for files, extract title+year, look up IMDb title, and rename.
+    Scan `directory` for files, skipping already-formatted ones,
+    extract title+year, look up IMDb info, and rename accordingly.
     """
     for file in directory.iterdir():
         if not file.is_file():
             continue
 
         raw_name = file.name
+
+        # Skip files already starting with "Title (Year)" or "Title [Year]" etc.
+        if BRACKETED_PATTERN.match(raw_name):
+            click.echo(f"⏩ Skipping already formatted: {raw_name!s}")
+            continue
+
         info = extract_title_and_year(raw_name)
         if not info:
             click.echo(f"⏩ Skipping (no title/year): {raw_name!s}")
             continue
 
-        raw_title, year = info
-        click.echo(f"🔎 Looking up: {raw_title!s} ({year})")
-        official = fetch_official_title_imdb(raw_title, year)
-        if not official:
-            click.echo(f"❌ No IMDb match for: {raw_title!s} ({year})")
-            continue
+        raw_title, extracted_year = info
+        click.echo(f"🔎 Looking up: {raw_title!s} ({extracted_year})")
+        official_title, imdb_year = fetch_info_from_imdb(raw_title, extracted_year)
 
-        new_name = rebuild_filename(raw_name, official, year)
+        new_name = rebuild_filename(raw_name, official_title, imdb_year)
         if new_name != raw_name:
             await _rename_file_async(str(file), str(file.parent / new_name))
             click.echo(f"✅ Renamed: {raw_name!s} → {new_name!s}")
