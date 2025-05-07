@@ -122,7 +122,7 @@ async def _process_files(directory: Path) -> None:
             continue
 
         # 2) Drop everything before the match (i.e. strip generic prefix)
-        cleaned = orig[match.start():]
+        cleaned = orig[match.start() :]
 
         # 3) If it already starts with "Title (Year)" or "Title [Year]" etc., skip
         if BRACKETED_PATTERN.match(cleaned):
@@ -130,9 +130,14 @@ async def _process_files(directory: Path) -> None:
             continue
 
         # 4) Extract title & year from the cleaned string
-        raw_title, extracted_year = extract_title_and_year(cleaned)  # this will succeed
-        click.echo(f"🔎 Looking up: {raw_title!s} ({extracted_year})")
+        # 4) Extract title & year from the cleaned string
+        info = extract_title_and_year(cleaned)
+        if info is None:
+            click.echo(f"⏩ Skipping (couldn't re-extract title/year): {cleaned!s}")
+            continue
+        raw_title, extracted_year = info
 
+        click.echo(f"🔎 Looking up: {raw_title!s} ({extracted_year})")
         # 5) IMDb lookup (returns at least (title, year))
         official_title, imdb_year = fetch_info_from_imdb(raw_title, extracted_year)
 
