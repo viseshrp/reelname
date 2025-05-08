@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 import aiofiles.os  # type: ignore[import-untyped]
 import click
 from imdb import Cinemagoer
-from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 from .constants import (
     BRACKETED_PATTERN,
@@ -51,7 +51,7 @@ def extract_title_and_year(filename: str) -> Optional[Tuple[str, str]]:
     return title, year
 
 
-def get_match_score(title: str, candidate: str) -> int:
+def get_match_score(title: str, candidate: str) -> float:
     """
     Combine three metrics and take the minimum:
       - fuzz.ratio
@@ -78,14 +78,14 @@ def fetch_info_from_imdb(title: str, year: str) -> Tuple[str, str]:
     results = ia.search_movie(f"{title} {year}")
 
     best_match = None
-    best_score = 0
+    best_score = 0.0
     for movie in results:
         candidate = movie.get("title", "")
         score = get_match_score(title, candidate)
         if score > best_score:
             best_score = score
             best_match = movie
-            if score == 100:
+            if score >= 98.0:
                 break
 
     if best_match and best_score >= 80:
