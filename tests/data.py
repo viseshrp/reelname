@@ -16,9 +16,10 @@ MOVIE_RENAME_CASES = [
         "The.Studio.2025.S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
         "The Studio (2025) S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
     ),
+    # Parentheses-only rebuild for a [2008] case:
     (
         "The.Dark.Knight[2008]DvDrip-aXXo.avi",
-        "The Dark Knight [2008]DvDrip-aXXo.avi",
+        "The Dark Knight (2008) DvDrip-aXXo.avi",
     ),
     (
         "Anchorman.2.The.Legend.Continues.2013.1080p.BluRay.DDP.5.1.H.265-EDGE2020.mkv",
@@ -59,7 +60,11 @@ EXTRACT_CASES = [
         "The.Studio.2025.S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
         ("The Studio", "2025"),
     ),
-    # And our new TamilMV example:
+    # And include the plain-[2008] variant
+    (
+        "The.Dark.Knight[2008]DvDrip-aXXo.avi",
+        ("The Dark Knight", "2008"),
+    ),
     (
         "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
         ("Bajirao Mastani", "2015"),

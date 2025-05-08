@@ -11,3 +11,6 @@ DOT_YEAR_PATTERN: Pattern[str] = re.compile(r"^(?P<title>.+?)\.(?P<year>\d{4})\.
 
 # Matches “Title 2023 ” style (space-separated year, no brackets)
 SPACE_YEAR_PATTERN: Pattern[str] = re.compile(r"^(?P<title>.+?)\s+(?P<year>\d{4})(?:\s|$)")
+
+# Pattern matching all characters forbidden on Windows (and generally inadvisable in filenames)
+INVALID_FILENAME_CHARS: Pattern[str] = re.compile(r'[<>:"/\\|?*]')
