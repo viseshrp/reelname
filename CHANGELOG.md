@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -
 
+## [2.0.0] - 2025-05-04
+
+### Added
+
+- use imdb and fuzzy match for intelligent matching
+- add --watch to make continuous watching optional
+- support for more patterns
+
 ## [1.0.0] - 2025-05-04
 
 ### Added
@@ -37,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Stub release
 
-[unreleased]: https://github.com/viseshrp/reelname/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/viseshrp/reelname/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/viseshrp/reelname/releases/tag/v2.0.0
 [1.0.0]: https://github.com/viseshrp/reelname/releases/tag/v1.0.0
 [0.0.1]: https://github.com/viseshrp/reelname/releases/tag/v0.0.1
