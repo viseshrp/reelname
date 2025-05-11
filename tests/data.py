@@ -16,7 +16,6 @@ MOVIE_RENAME_CASES = [
         "The.Studio.2025.S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
         "The Studio (2025) S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
     ),
-    # Parentheses-only rebuild for a [2008] case:
     (
         "The.Dark.Knight[2008]DvDrip-aXXo.avi",
         "The Dark Knight (2008) DvDrip-aXXo.avi",
@@ -32,6 +31,26 @@ MOVIE_RENAME_CASES = [
     (
         "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
         "Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
+    ),
+    (
+        "Spider-Man.2002.1080p.BluRay.x264-GROUP.mkv",
+        "Spider-Man (2002) 1080p.BluRay.x264-GROUP.mkv",
+    ),
+    (
+        "Inception<2010>720p.x264.AAC.mkv",
+        "Inception (2010)720p.x264.AAC.mkv",
+    ),
+    (
+        "Interstellar{2014}1080p.BluRay.x265-PSA.mkv",
+        "Interstellar (2014) 1080p.BluRay.x265-PSA.mkv",
+    ),
+    (
+        "The.Matrix.1999.REMASTERED.BluRay.1080p.DTS-HD.MA.5.1.mkv",
+        "The Matrix (1999) REMASTERED.BluRay.1080p.DTS-HD.MA.5.1.mkv",
+    ),
+    (
+        "yts.mx - Anora (2024) 1080p BluRay x265 HEVC-YTS.mp4",
+        "Anora (2024) 1080p BluRay x265 HEVC-YTS.mp4",
     ),
 ]
 
@@ -51,22 +70,21 @@ EXTRACT_CASES = [
     ("The.Studio.2025.S01E07.Casting.mkv", ("The Studio", "2025")),
     ("NoYearHere.mkv", None),
     ("Citizenfour.2014.720p.WEB-DL.AAC2.0.H.264-NOGRP.mp4", ("Citizenfour", "2014")),
-    (
-        "The.Movie.Title.2010.REMASTERED.1080p.BluRay.x264-GROUP.mkv",
-        ("The Movie Title", "2010"),
-    ),
+    ("The.Movie.Title.2010.REMASTERED.1080p.BluRay.x264-GROUP.mkv", ("The Movie Title", "2010")),
     ("Title.Of.The.Movie.2023.BluRay.x264-GROUP.mkv", ("Title Of The Movie", "2023")),
     (
         "The.Studio.2025.S01E07.Casting.1080p.ATVP.WEB-DL.DDP5.1.Atmos.H.264-FLUX.mkv",
         ("The Studio", "2025"),
     ),
-    # And include the plain-[2008] variant
-    (
-        "The.Dark.Knight[2008]DvDrip-aXXo.avi",
-        ("The Dark Knight", "2008"),
-    ),
     (
         "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
         ("Bajirao Mastani", "2015"),
     ),
+    ("The.Dark.Knight[2008]DvDrip-aXXo.avi", ("The Dark Knight", "2008")),
+    ("www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip.mkv", ("Bajirao Mastani", "2015")),
+    ("Spider-Man.2002.1080p.BluRay.x264-GROUP.mkv", ("Spider-Man", "2002")),
+    ("Inception<2010>720p.x264.AAC.mkv", ("Inception", "2010")),
+    ("Interstellar{2014}1080p.BluRay.x265-PSA.mkv", ("Interstellar", "2014")),
+    ("The.Matrix.1999.REMASTERED.BluRay.1080p.DTS-HD.MA.5.1.mkv", ("The Matrix", "1999")),
+    ("yts.mx - Dune (2021) 1080p BluRay x265 HEVC-YTS.mp4", ("Dune", "2021")),
 ] + [(fn, None) for fn in SKIP_CASES]

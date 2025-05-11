@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 from typing import Optional, Tuple
 
-import aiofiles.os  # type: ignore[import-untyped]
+import aiofiles.os
 import click
 from imdb import Cinemagoer
 from rapidfuzz import fuzz
@@ -12,35 +12,31 @@ from .constants import (
     DOT_YEAR_PATTERN,
     INVALID_FILENAME_CHARS,
     SPACE_YEAR_PATTERN,
+    URL_PREFIX_PATTERN,
 )
 
 
 def extract_title_and_year(filename: str) -> Optional[Tuple[str, str]]:
     """
-    Try in order:
-      1) 'Title (YYYY)'
-      2) 'Title.YYYY.'
-      3) 'Title YYYY '
-    on the raw filename.
-
-    Then, if the captured raw_title contains " - ", drop everything before that.
-    Finally, replace dots/underscores with spaces.
+    Extract (title, year) from a filename. Handles:
+      - optional site/tracker prefixes (e.g. 'www.site.com - ')
+      - bracketed years (e.g. [2023], (2022))
+      - dot-year (e.g. Title.2023.)
+      - space-year (e.g. Title 2023 ...)
     """
+    # Drop a tracker prefix if present
+    if m := URL_PREFIX_PATTERN.match(filename):
+        filename = filename[m.end() :]  # remove only prefix, not all ' - '
+
+    # Try year-extracting patterns
     for pat in (BRACKETED_PATTERN, DOT_YEAR_PATTERN, SPACE_YEAR_PATTERN):
-        m = pat.search(filename)
-        if not m:
-            continue
+        if m := pat.search(filename):
+            raw_title = m.group("title").strip()
+            year = m.group("year")
 
-        raw_title = m.group("title").strip()
-        year = m.group("year")
-
-        # Drop any leading junk if there's a " - " delimiter
-        if " - " in raw_title:
-            raw_title = raw_title.split(" - ", 1)[-1].strip()
-
-        # Normalize dot/underscore separators to spaces
-        title = re.sub(r"[._]+", " ", raw_title).strip()
-        return title, year
+            # Normalize dot/underscore separators to spaces
+            title = re.sub(r"[._]+", " ", raw_title).strip()
+            return title, year
 
     return None
 
