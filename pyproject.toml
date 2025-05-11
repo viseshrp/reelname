@@ -168,22 +168,3 @@ exclude_dirs = ["venv/*", ".venv/*", "tests/*"]
 
 [tool.pre-commit.default_language_versions]
 python = "3.11"
-
-[tool.tox]
-min_version = "4.0"
-env_list = ["py39", "py310", "py311", "py312", "py313"]
-skipsdist = true
-
-[tool.tox.root]
-skipsdist = true
-
-[tool.tox-gh-actions]
-python = { "3.9" = "py39", "3.10" = "py310", "3.11" = "py311", "3.12" = "py312", "3.13" = "py313" }
-
-[tool.tox.env]
-pass_env = ["PYTHON_VERSION"]
-allowlist_externals = ["uv"]
-commands = [
-    ["uv", "sync", "--python", "{envpython}"],
-    ["uv", "run", "python", "-m", "pytest", "tests"],
-]
