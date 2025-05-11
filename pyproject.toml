@@ -38,7 +38,9 @@ reelname = "reelname.cli:main"
 dev = [
     "pre-commit>=4.2.0",
     "uv>=0.6.17",
+    "tox>=4.25.0",
     "tox-uv>=1.25.0",
+    "tox-gh-actions>=3.3.0",
     "mypy>=1.15.0",
     "deptry>=0.23.0",
     "pytest>=8.3.5",
@@ -178,22 +180,10 @@ skipsdist = true
 [tool.tox-gh-actions]
 python = { "3.9" = "py39", "3.10" = "py310", "3.11" = "py311", "3.12" = "py312", "3.13" = "py313" }
 
-[tool.tox.env.py39]
+[tool.tox.env]
 pass_env = ["PYTHON_VERSION"]
 allowlist_externals = ["uv"]
 commands = [
     ["uv", "sync", "--python", "{envpython}"],
     ["uv", "run", "python", "-m", "pytest", "tests"],
 ]
-
-[tool.tox.env.py310]
-inherits = "py39"
-
-[tool.tox.env.py311]
-inherits = "py39"
-
-[tool.tox.env.py312]
-inherits = "py39"
-
-[tool.tox.env.py313]
-inherits = "py39"
