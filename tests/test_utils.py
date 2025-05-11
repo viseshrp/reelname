@@ -17,6 +17,6 @@ def test_rebuild_filename_matches_extract(orig: str, expected_new: str) -> None:
     compare to the expected renamed form.
     """
     # derive title/year from extract_title_and_year
-    title, year = extract_title_and_year(orig)
+    title, year = extract_title_and_year(orig)  # type: ignore
     rebuilt = rebuild_filename(orig, title, year)
     assert rebuilt == expected_new

@@ -17,38 +17,32 @@ from .constants import (
 
 def extract_title_and_year(filename: str) -> Optional[Tuple[str, str]]:
     """
-    Extract a human-friendly title and year from the filename by:
-      1) Finding where any of our year-patterns first occurs.
-      2) Dropping the prefix up to that point.
-      3) Re-applying the same pattern on the cleaned substring.
+    Try in order:
+      1) 'Title (YYYY)'
+      2) 'Title.YYYY.'
+      3) 'Title YYYY '
+    on the raw filename.
+
+    Then, if the captured raw_title contains " - ", drop everything before that.
+    Finally, replace dots/underscores with spaces.
     """
-    # 1) Locate the first year-pattern in the raw filename
-    m = (
-        BRACKETED_PATTERN.search(filename)
-        or DOT_YEAR_PATTERN.search(filename)
-        or SPACE_YEAR_PATTERN.search(filename)
-    )
-    if not m:
-        return None
+    for pat in (BRACKETED_PATTERN, DOT_YEAR_PATTERN, SPACE_YEAR_PATTERN):
+        m = pat.search(filename)
+        if not m:
+            continue
 
-    # 2) Strip off any junk before the match
-    cleaned = filename[m.start() :]
+        raw_title = m.group("title").strip()
+        year = m.group("year")
 
-    # 3) Now re-run the same patterns on 'cleaned'
-    m2 = (
-        BRACKETED_PATTERN.search(cleaned)
-        or DOT_YEAR_PATTERN.search(cleaned)
-        or SPACE_YEAR_PATTERN.search(cleaned)
-    )
-    if not m2:
-        return None
+        # Drop any leading junk if there's a " - " delimiter
+        if " - " in raw_title:
+            raw_title = raw_title.split(" - ", 1)[-1].strip()
 
-    # 4) Extract the title & year groups
-    raw_title = m2.group("title").strip()
-    year = m2.group("year")
-    # Normalize dots/underscores to spaces
-    title = re.sub(r"[._]+", " ", raw_title)
-    return title, year
+        # Normalize dot/underscore separators to spaces
+        title = re.sub(r"[._]+", " ", raw_title).strip()
+        return title, year
+
+    return None
 
 
 def get_match_score(title: str, candidate: str) -> float:
@@ -93,6 +87,7 @@ def fetch_info_from_imdb(title: str, year: str) -> Tuple[str, str]:
         imdb_title = best_match.get("title")
         imdb_year = str(best_match.get("year"))
         if imdb_title and imdb_year:  # return the fixed title and year
+            click.echo(f"🔎 Found: {imdb_title} ({imdb_year})")
             return imdb_title, imdb_year
 
     return title, year
