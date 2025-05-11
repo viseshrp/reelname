@@ -846,6 +846,8 @@ dev = [
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pytest" },
+    { name = "tox" },
+    { name = "tox-gh-actions" },
     { name = "tox-uv" },
     { name = "uv" },
     { name = "vulture" },
@@ -868,6 +870,8 @@ dev = [
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "pre-commit", specifier = ">=4.2.0" },
     { name = "pytest", specifier = ">=8.3.5" },
+    { name = "tox", specifier = ">=4.25.0" },
+    { name = "tox-gh-actions", specifier = ">=3.3.0" },
     { name = "tox-uv", specifier = ">=1.25.0" },
     { name = "uv", specifier = ">=0.6.17" },
     { name = "vulture", specifier = ">=2.14" },
@@ -1021,6 +1025,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fe/87/692478f0a194f1cad64803692642bd88c12c5b64eee16bf178e4a32e979c/tox-4.25.0.tar.gz", hash = "sha256:dd67f030317b80722cf52b246ff42aafd3ed27ddf331c415612d084304cf5e52", size = 196255, upload_time = "2025-03-27T15:13:37.519Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/38/33348de6fc4b1afb3d76d8485c8aecbdabcfb3af8da53d40c792332e2b37/tox-4.25.0-py3-none-any.whl", hash = "sha256:4dfdc7ba2cc6fdc6688dde1b21e7b46ff6c41795fb54586c91a3533317b5255c", size = 172420, upload_time = "2025-03-27T15:13:35.703Z" },
+]
+
+[[package]]
+name = "tox-gh-actions"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tox" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/79/825b2551498a8a339699b87da52ee23fc80cae3f89a5cf7d48b46325fbb3/tox_gh_actions-3.3.0.tar.gz", hash = "sha256:6933775dd7ab98649de5134283277e604fecfd4eb44bf31150c1c6ba2b1092ef", size = 19205, upload_time = "2025-02-22T15:10:44.019Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/c7/1cf26c90539746a2bdb8217f13c29e15e33a525f13595b690150bceb5bef/tox_gh_actions-3.3.0-py2.py3-none-any.whl", hash = "sha256:0e1f9db7a775d04b6d94ab801c60d2d482929a934136262969791eb0ccac65a4", size = 9948, upload_time = "2025-02-22T15:10:42.77Z" },
 ]
 
 [[package]]
