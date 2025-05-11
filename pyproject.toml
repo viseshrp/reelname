@@ -76,7 +76,7 @@ disable_error_code = ["import-untyped"]
 [tool.pytest.ini_options]
 tmp_path_retention_policy = "failed"
 testpaths = ["tests"]
-addopts = "--capture=tee-sys --tb=native -p no:warnings -vv"
+addopts = "--capture=tee-sys --tb=native -p no:warnings -ra -vv"
 markers = [
     "integration:Run integration tests",
     "smoke:Run the smoke tests",
