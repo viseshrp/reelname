@@ -11,11 +11,14 @@ permissions:
 
 jobs:
   autoupdate:
+    if: github.ref == 'refs/heads/main'  # Prevent running on update branch
     name: Autoupdate Pre-commit Hooks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessary for full branch context
 
       - name: Cache pre-commit hooks
         uses: actions/cache@v4
@@ -26,6 +29,13 @@ jobs:
       - name: Set up Python + Environment
         uses: ./.github/actions/setup-python-env
 
+      - name: Create or switch to update branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B chore/pre-commit-update origin/main
+
       - name: Run pre-commit autoupdate
         run: uv run pre-commit autoupdate
         continue-on-error: true
@@ -33,10 +43,16 @@ jobs:
       - name: Run pre-commit checks
         run: make check
 
+      - name: Commit changes
+        run: |
+          git add .pre-commit-config.yaml
+          git commit -m "chore(pre-commit): Update pre-commit hooks" || echo "No changes to commit"
+
       - name: Create Pull Request for Updated Hooks
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
           branch: chore/pre-commit-update
           title: "chore(pre-commit): Update pre-commit hooks"
           commit-message: "chore(pre-commit): Update pre-commit hooks"

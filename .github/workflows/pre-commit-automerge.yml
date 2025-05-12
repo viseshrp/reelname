@@ -6,24 +6,45 @@ on:
     types:
       - labeled
       - synchronize
+      - opened
+      - reopened
 
 permissions:
   pull-requests: write
   contents: write
+  issues: write
 
 jobs:
   automerge:
-    if: |
-      github.event.pull_request.head.ref == 'chore/pre-commit-update' &&
-      contains(github.event.pull_request.labels.*.name, 'dependencies') &&
-      contains(github.event.pull_request.labels.*.name, 'chore')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Check required labels
+        id: label-check
+        run: |
+          echo "dependencies=false" >> "$GITHUB_OUTPUT"
+          echo "chore=false" >> "$GITHUB_OUTPUT"
+          labels=$(jq -r '.pull_request.labels[].name' <<< "${{ toJson(github.event.pull_request) }}")
+          if grep -q 'dependencies' <<< "$labels"; then echo "dependencies=true" >> "$GITHUB_OUTPUT"; fi
+          if grep -q 'chore' <<< "$labels"; then echo "chore=true" >> "$GITHUB_OUTPUT"; fi
 
-      - name: Enable auto-merge for PR
+      - name: Enable auto-merge
+        if: |
+          github.event.pull_request.head.ref == 'chore/pre-commit-update' &&
+          steps.label-check.outputs.dependencies == 'true' &&
+          steps.label-check.outputs.chore == 'true'
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           merge-method: squash
+
+      - name: Comment on PR if labels are missing
+        if: |
+          github.event.pull_request.head.ref == 'chore/pre-commit-update' &&
+          (steps.label-check.outputs.dependencies != 'true' || steps.label-check.outputs.chore != 'true')
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ⚠️ Auto-merge not enabled because this PR is missing one or both required labels: `dependencies`, `chore`.
+            Please add the labels to enable auto-merge.
