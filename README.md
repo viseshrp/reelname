@@ -39,7 +39,8 @@ See [CHANGELOG.md](https://github.com/viseshrp/reelname/blob/main/CHANGELOG.md)
 
 ## 🙏 Credits
 
-* [Click](https://click.palletsprojects.com), for enabling delightful CLI development.* Inspired by [Simon Willison](https://github.com/simonw)'s work.
+* [Click](https://click.palletsprojects.com), for enabling delightful CLI development.
+* Inspired by [Simon Willison](https://github.com/simonw)'s work.
 
 ## 📄 License
 

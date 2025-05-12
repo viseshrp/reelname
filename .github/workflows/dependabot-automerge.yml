@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   automerge:
@@ -20,3 +21,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           merge-method: squash
+          pull-request-number: ${{ github.event.pull_request.number }}
