@@ -38,7 +38,8 @@ SPACE_YEAR_PATTERN: Pattern[str] = re.compile(r"(?P<title>.+?)\s+(?P<year>\d{4})
 # Regex breakdown:
 #   [<>:"/\\|?*]           → Match any one of these characters literally
 #   Double escaping \\     → Needed for backslash inside regex string
-INVALID_FILENAME_CHARS: Pattern[str] = re.compile(r'[<>:"/\\|?*]')
+#   strip spaces and . at the end
+INVALID_FILENAME_CHARS: Pattern[str] = re.compile(r'[<>:"/\\|?*]|[ .]+$')
 
 # Matches tracker prefixes at the beginning of filenames like:
 #   "www.1TamilMV.fi - ", "yts.mx - ", "1337x.to - "

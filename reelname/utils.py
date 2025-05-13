@@ -115,7 +115,7 @@ def rebuild_filename(original: str, title: str, year: str) -> str:
 
         # 3) Strip any leading punctuation/brackets/whitespace from the suffix,
         #    replacing it with a single space (if there is any suffix at all).
-        suffix_clean = re.sub(r"^[\s._\-\[\](){}<]+", " ", suffix)
+        suffix_clean = re.sub(r"^[\s._\-()\[\]{}<>]+", " ", suffix)
 
         # 4) Build the new filename
         file_name = f"{title} ({year}){suffix_clean}"
@@ -161,7 +161,7 @@ async def _process_files(directory: Path) -> None:
         cleaned = raw_filename[start:]
 
         new_name = rebuild_filename(cleaned, imdb_title, imdb_year)
-        if new_name != cleaned:
+        if new_name != raw_filename:
             # rename the *original* file to the cleaned new_name
             await _rename_file_async(str(file), str(file.parent / new_name))
             click.echo(f"✅ Renamed: {raw_filename} → {new_name}")
