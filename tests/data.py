@@ -52,6 +52,14 @@ MOVIE_RENAME_CASES = [
         "yts.mx - Anora (2024) 1080p BluRay x265 HEVC-YTS.mp4",
         "Anora (2024) 1080p BluRay x265 HEVC-YTS.mp4",
     ),
+    (
+        "www.YTS.mx - The.Dark.Knight.2008.1080p.BluRay.x264.mkv",
+        "The Dark Knight (2008) 1080p.BluRay.x264.mkv",
+    ),
+    (
+        "rarbg.to - The Matrix 1999 1080p BluRay x264 AAC.mkv",
+        "The Matrix (1999) 1080p BluRay x264 AAC.mkv",
+    ),
 ]
 
 # Filenames that should be skipped because they lack a parsable year
@@ -87,4 +95,8 @@ EXTRACT_CASES = [
     ("Interstellar{2014}1080p.BluRay.x265-PSA.mkv", ("Interstellar", "2014")),
     ("The.Matrix.1999.REMASTERED.BluRay.1080p.DTS-HD.MA.5.1.mkv", ("The Matrix", "1999")),
     ("yts.mx - Dune (2021) 1080p BluRay x265 HEVC-YTS.mp4", ("Dune", "2021")),
+    # Case where dot-year appears mid-string after prefix
+    ("www.YTS.mx - The.Dark.Knight.2008.1080p.BluRay.x264.mkv", ("The Dark Knight", "2008")),
+    # Case where space-year appears mid-string after prefix
+    ("rarbg.to - The Matrix 1999 1080p BluRay x264 AAC.mkv", ("The Matrix", "1999")),
 ] + [(fn, None) for fn in SKIP_CASES]
