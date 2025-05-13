@@ -38,7 +38,7 @@ MOVIE_RENAME_CASES = [
     ),
     (
         "Inception<2010>720p.x264.AAC.mkv",
-        "Inception (2010)720p.x264.AAC.mkv",
+        "Inception (2010) 720p.x264.AAC.mkv",
     ),
     (
         "Interstellar{2014}1080p.BluRay.x265-PSA.mkv",
