@@ -28,7 +28,7 @@ jobs:
         if: |
           github.event.pull_request.user.login == 'github-actions[bot]' ||
           github.event.pull_request.user.login == 'dependabot[bot]'
-        uses: hmarr/auto-approve-action@v3
+        uses: hmarr/auto-approve-action@v4
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
