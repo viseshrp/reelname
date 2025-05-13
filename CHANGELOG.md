@@ -62,8 +62,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Stub release
-
-[unreleased]: https://github.com/viseshrp/reelname/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/viseshrp/reelname/releases/tag/v2.0.0
-[1.0.0]: https://github.com/viseshrp/reelname/releases/tag/v1.0.0
-[0.0.1]: https://github.com/viseshrp/reelname/releases/tag/v0.0.1
