@@ -61,6 +61,15 @@ path = "reelname/_version.py"
 local_scheme = "no-local-version"
 version_scheme = "guess-next-dev"
 
+[tool.hatch.build.targets.wheel]
+packages = ["reelname"]
+
+[tool.hatch.build.targets.editable]
+packages = ["reelname"]
+
+[tool.uv]
+default-groups = "all"
+
 [tool.mypy]
 files = [
     "reelname"
