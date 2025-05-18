@@ -32,12 +32,10 @@ jobs:
       - name: Set up Python + Environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Create or switch to update branch
+      - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout -B chore/pre-commit-update origin/main
 
       - name: Run pre-commit autoupdate
         run: uv run pre-commit autoupdate
