@@ -3,15 +3,11 @@ name: Main
 on:
   workflow_dispatch:
   pull_request:
-    branches:
-      - main
-      - release/*
   push:
     tags:
       - "v*"
-    branches:
-      - main
-      - release/*
+    branches-ignore:
+      - "gh-pages"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
