@@ -14,13 +14,6 @@ Type "clear"
 Enter
 Show
 
-# Type a command in the terminal.
-# Activate virtual environment
-Type "source .venv/bin/activate"
-Sleep 1s
-Enter
-Sleep 1s
-
 # CLI demo
 Type "reelname --help"
 Sleep 2s
