@@ -1,13 +1,10 @@
 Set Shell bash
-
-Hide Sleep 2s Show
-
-# Where should we write the GIF?
-Output demo.gif
-
 Set FontSize 18
 Set Width 800
 Set Height 600
+Output demo.gif
+
+Hide Sleep 2s Show
 
 Hide
 Type "clear"

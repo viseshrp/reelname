@@ -31,13 +31,6 @@ jobs:
       - name: Run version checks
         run: make check-version
 
-      - name: Prevent accidental dev release
-        run: |
-          if hatch version | grep -q dev; then
-            echo "❌ Refusing to publish a dev version to PyPI"
-            exit 1
-          fi
-
       - name: Build package
         run: make build
 

@@ -31,7 +31,7 @@ jobs:
           github.event.pull_request.user.login == 'viseshrp'
         uses: hmarr/auto-approve-action@v4
         with:
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ github.event.pull_request.number }}
 
       - name: Enable auto-merge
