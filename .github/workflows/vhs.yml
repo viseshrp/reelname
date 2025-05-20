@@ -1,4 +1,4 @@
-name: Auto-update demo.gif from demo.tape
+name: Auto-update demo.gif
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
         uses: ./.github/actions/setup-python-env
 
       - name: Render demo.tape → demo.gif
-        uses: charmbracelet/vhs-action@v1
+        uses: charmbracelet/vhs-action@latest
         with:
           path: demo.tape
           out: demo.gif
