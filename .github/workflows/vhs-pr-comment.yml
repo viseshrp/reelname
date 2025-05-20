@@ -20,7 +20,7 @@ jobs:
         uses: ./.github/actions/setup-python-env
 
       - name: Render demo.tape → demo.gif
-        uses: charmbracelet/vhs-action@latest
+        uses: charmbracelet/vhs-action@v2.1.0
         with:
           path: demo.tape
           out: demo.gif
