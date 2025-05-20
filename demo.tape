@@ -15,7 +15,7 @@ Show
 Type "reelname --help"
 Sleep 2s
 Enter
-Sleep 4s
+Sleep 6s
 
 
 Hide
