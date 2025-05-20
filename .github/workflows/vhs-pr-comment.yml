@@ -19,13 +19,11 @@ jobs:
       - name: Set up Python + Environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
       - name: Render demo.tape → demo.gif
-        uses: charmbracelet/vhs-action@v2.1.0
+        uses: charmbracelet/vhs-action@v1
         with:
           path: demo.tape
+          out: demo.gif
 
       - name: Commit demo.gif to PR branch
         run: |
