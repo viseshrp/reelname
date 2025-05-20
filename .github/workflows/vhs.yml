@@ -17,10 +17,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set Git identity
         run: |
@@ -30,11 +26,11 @@ jobs:
       - name: Set up Python + virtual environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Render demo.tape → demo.gif
-        uses: charmbracelet/vhs-action@v1
-        with:
-          path: demo.tape
-          out: demo.gif
+      - name: Install VHS + deps
+        run: brew install vhs
+
+      - name: Generate demo.gif
+        run: vhs demo.tape
 
       - name: Commit demo.gif if changed
         run: |
