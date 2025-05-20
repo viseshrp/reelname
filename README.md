@@ -11,6 +11,8 @@
 
 > A tool to fix media file names
 
+![Demo](https://raw.githubusercontent.com/viseshrp/reelname/main/demo.gif)
+
 ## 🛠️ Features
 
 * Fixes media filenames with random characters.
