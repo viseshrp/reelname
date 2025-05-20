@@ -39,6 +39,9 @@ jobs:
       - name: Run pre-commit checks
         run: make check
 
+      - name: Show updated hooks (if any)
+        run: git diff .pre-commit-config.yaml || true
+
       - name: Commit changes
         run: |
           git add .pre-commit-config.yaml

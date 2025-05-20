@@ -15,16 +15,19 @@ Enter
 Show
 
 # Type a command in the terminal.
-Type "reelname --help"
-
-# Pause for dramatic effect...
-Sleep 2s
-
-# Run the command by pressing enter.
+# Activate virtual environment
+Type "source .venv/bin/activate"
+Sleep 1s
 Enter
+Sleep 1s
 
-# Admire the output for a bit.
+
+# CLI demo
+Type "reelname --help"
+Sleep 2s
+Enter
 Sleep 4s
+
 
 Hide
 Type "clear"

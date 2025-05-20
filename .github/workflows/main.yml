@@ -40,6 +40,7 @@ jobs:
         run: make check
 
   tests:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -4,7 +4,7 @@ SHELL := bash
 .PHONY: install
 install: ## 🚀 Set up environment and install project
 	@echo "🚀 Syncing dependencies with uv..."
-	uv sync
+	uv sync --frozen
 	@echo "🔧 Installing project in editable mode..."
 	uv pip install -e .
 

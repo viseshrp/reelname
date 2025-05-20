@@ -1,0 +1,50 @@
+name: Auto-update demo.gif from demo.tape
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - demo.tape
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vhs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Set Git identity
+        run: |
+          git config user.name "vhs-action 📼"
+          git config user.email "actions@github.com"
+
+      - name: Set up Python + virtual environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Render demo.tape → demo.gif
+        uses: charmbracelet/vhs-action@v1
+        with:
+          path: demo.tape
+          out: demo.gif
+
+      - name: Commit demo.gif if changed
+        run: |
+          if git diff --quiet -- demo.gif; then
+            echo "✅ No changes to demo.gif"
+            exit 0
+          fi
+
+          git add demo.gif
+          git commit -m "chore(demo): update demo.gif"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
