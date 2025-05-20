@@ -21,7 +21,6 @@ Sleep 1s
 Enter
 Sleep 1s
 
-
 # CLI demo
 Type "reelname --help"
 Sleep 2s

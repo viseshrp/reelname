@@ -34,11 +34,6 @@ jobs:
 
       - name: Commit demo.gif if changed
         run: |
-          if git diff --quiet -- demo.gif; then
-            echo "✅ No changes to demo.gif"
-            exit 0
-          fi
-
           git add demo.gif
           git commit -m "chore(demo): update demo.gif"
           git push origin main

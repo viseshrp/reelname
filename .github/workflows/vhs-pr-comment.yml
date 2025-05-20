@@ -16,6 +16,11 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
 
+      - name: Set Git identity
+        run: |
+          git config user.name "vhs-action 📼"
+          git config user.email "actions@github.com"
+
       - name: Set up Python + Environment
         uses: ./.github/actions/setup-python-env
 
@@ -27,13 +32,6 @@ jobs:
 
       - name: Commit demo.gif to PR branch
         run: |
-          if git diff --quiet -- demo.gif; then
-            echo "✅ No changes to demo.gif"
-            exit 0
-          fi
-
-          git config user.name "vhs-action 📼"
-          git config user.email "actions@github.com"
           git add demo.gif
           git commit -m "chore(demo): update demo.gif"
           git push
