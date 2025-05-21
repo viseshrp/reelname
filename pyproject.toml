@@ -176,4 +176,4 @@ require_serial = true
 exclude_dirs = ["venv/*", ".venv/*", "tests/*"]
 
 [tool.pre-commit.default_language_versions]
-python = "3.11"
+python = "3.13"
