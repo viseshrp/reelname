@@ -22,7 +22,7 @@ check-version:
 check: ## Run all code quality checks
 	@echo "🚀 Checking lock file consistency"
 	uv lock --locked
-	@echo "🚀 Running pre-commit hooks (ruff, mypy, vulture, safety, etc.)"
+	@echo "🚀 Running pre-commit hooks"
 	uv run pre-commit run --all-files
 
 .PHONY: test
