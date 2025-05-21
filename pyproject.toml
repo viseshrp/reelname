@@ -15,7 +15,13 @@ dependencies = [
 ]
 license = { text = "MIT" }
 classifiers = [
-    "Intended Audience :: Developers",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+     "Intended Audience :: Developers",
+    "Environment :: Console",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
@@ -23,16 +29,18 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 [project.urls]
 Homepage = "https://github.com/viseshrp/reelname"
 Repository = "https://github.com/viseshrp/reelname"
 Documentation = "https://github.com/viseshrp/reelname/blob/main/README.md"
+Changelog = "https://github.com/viseshrp/reelname/blob/main/CHANGELOG.md"
+Bug-Tracker = "https://github.com/viseshrp/reelname/issues"
+CI = "https://github.com/viseshrp/reelname/actions"
 
 [project.scripts]
-reelname = "reelname.cli:main"
+reelname = "reelname.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -46,6 +54,7 @@ dev = [
     "pytest>=8.3.5",
     "vulture>=2.14",
     "cogapp>=3.4.1",
+    "twine>=6.1.0",
     "ipdb>=0.13.13",
 ]
 
@@ -129,6 +138,8 @@ select = [
     "C90",
     # pycodestyle
     "E", "W",
+    # pep8-naming rules
+    "N",
     # pyflakes
     "F",
     # pygrep-hooks
