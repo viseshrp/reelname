@@ -117,6 +117,7 @@ fix = true
 exclude = [".venv", "__init__.py"]
 
 [tool.ruff.lint]
+fixable = ["ALL"]
 select = [
     # flake8-2020
     "YTT",
@@ -165,13 +166,13 @@ max-complexity = 10
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 
-[tool.black]
-line-length = 100
-target-version = ["py39"]
-
 [tool.ruff.lint.isort]
 known-first-party = ["reelname", "tests"]
 force-sort-within-sections = true
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
 
 [tool.codespell]
 ignore-words = "codespell.txt"
