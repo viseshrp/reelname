@@ -17,6 +17,10 @@
 
 * Fixes media filenames with random characters.
 
+## 📐 Requirements
+
+* Python >= 3.9
+
 ## 📦 Installation
 
 ```bash
@@ -31,9 +35,9 @@ pip install reelname
 reelname --help
 ```
 
-## 📐 Requirements
+## 🛠️ Features
 
-* Python >= 3.9
+* Does stuff
 
 ## 🧾 Changelog
 
