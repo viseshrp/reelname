@@ -29,8 +29,8 @@ MOVIE_RENAME_CASES = [
         "The Straight Story (1999) REMASTERED 1080p BluRay HEVC x265 5.1 BONE.mkv",
     ),
     (
-        "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
-        "Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
+        "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",  # noqa: E501
+        "Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",  # noqa: E501
     ),
     (
         "Spider-Man.2002.1080p.BluRay.x264-GROUP.mkv",
@@ -85,7 +85,7 @@ EXTRACT_CASES = [
         ("The Studio", "2025"),
     ),
     (
-        "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",
+        "www.1TamilMV.fi - Bajirao Mastani (2015) Tamil HQ HDRip - 1080p - HEVC - x265 - (AAC 2.0) - 1.8GB - ESub.mkv",  # noqa: E501
         ("Bajirao Mastani", "2015"),
     ),
     ("The.Dark.Knight[2008]DvDrip-aXXo.avi", ("The Dark Knight", "2008")),

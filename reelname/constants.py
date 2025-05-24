@@ -46,11 +46,13 @@ INVALID_FILENAME_CHARS: Pattern[str] = re.compile(r'[<>:"/\\|?*]|[ .]+$')
 # Regex breakdown:
 #   ^                            → Anchor to start of string
 #   (?:                          → Non-capturing group:
-#       www\.[\w.-]+             → Starts with "www." followed by domain characters (letters, digits, dash, dot)
+#       www\.[\w.-]+             → Starts with "www." followed by domain characters
+#       (letters, digits, dash, dot)
 #       |                        → OR
 #       \w+\.\w{2,}              → Domain name like "yts.mx" or "1337x.to"
 #   )
-#   (?:\s*[--]\s*)               → Optional spaces, then dash or en dash (two hyphens), then optional spaces
+#   (?:\s*[--]\s*)               → Optional spaces, then dash or en dash (two hyphens),
+#   then optional spaces
 URL_PREFIX_PATTERN: Pattern[str] = re.compile(
     r"^(?:www\.[\w.-]+|\w+\.\w{2,})(?:\s*[--]\s*)", re.IGNORECASE
 )
