@@ -59,13 +59,12 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling", "hatch-timestamp-version>=0.0.5"]
+requires = ["hatchling", "hatch-timestamp-version>=0.0.7"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "reelname/_version.py"
-source = "timestamp-dev"
-scheme = "timestamp-dev"
+source = "vcs-dev-timestamp"
 validate-bump = true
 
 [tool.hatch.version.raw-options]
