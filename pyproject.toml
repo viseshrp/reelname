@@ -44,25 +44,23 @@ reelname = "reelname.__main__:main"
 
 [dependency-groups]
 dev = [
-    "pre-commit",
-    "pre-commit-hooks",  # for check-case-conflict, etc.
+    "ipdb",
     "uv",
     "tox",
     "tox-uv",
     "tox-gh-actions",
-    "mypy",
-    "deptry",
+    "pytest",
+    "pre-commit",
     "black",
     "ruff",
     "pip-audit",
     "bandit[toml]",
     "codespell",
+    "mypy",
     "vulture",
-    "pytest",
-    "vulture",
+    "deptry",
     "cogapp",
     "twine",
-    "ipdb",
     "hatch",
 ]
 
@@ -126,6 +124,7 @@ filterwarnings = [
 target-version = "py39"
 line-length = 100
 fix = true
+unsafe-fixes = true
 exclude = [".venv", "__init__.py"]
 
 [tool.ruff.lint]
