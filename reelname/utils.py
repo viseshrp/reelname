@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
 import re
-from typing import Optional, Tuple
 
 import aiofiles.os
 import click
@@ -16,7 +17,7 @@ from .constants import (
 )
 
 
-def extract_title_and_year(filename: str) -> Optional[Tuple[str, str]]:
+def extract_title_and_year(filename: str) -> tuple[str | None, str | None]:
     """
     Extract (title, year) from a filename. Handles:
       - optional site/tracker prefixes (e.g. 'www.site.com - ')
@@ -38,7 +39,7 @@ def extract_title_and_year(filename: str) -> Optional[Tuple[str, str]]:
             title = re.sub(r"[._]+", " ", raw_title).strip()
             return title, year
 
-    return None
+    return None, None
 
 
 def get_match_score(title: str, candidate: str) -> float:
@@ -56,7 +57,7 @@ def get_match_score(title: str, candidate: str) -> float:
     )
 
 
-def fetch_info_from_imdb(title: str, year: str) -> Tuple[str, str]:
+def fetch_info_from_imdb(title: str, year: str) -> tuple[str, str]:
     """
     Look up the title on IMDb via Cinemagoer:
       - Search IMDb for the raw title.
@@ -70,21 +71,27 @@ def fetch_info_from_imdb(title: str, year: str) -> Tuple[str, str]:
     best_match = None
     best_score = 0.0
     for movie in results:
-        candidate = movie.get("title", "")
+        candidate = movie.get("title")
+        if not candidate:
+            continue
         score = get_match_score(title, candidate)
         if score > best_score:
+            movie_year = movie.get("year")
+            if not movie_year:
+                ia.update(movie)  # fetch full details for this movie
+            if str(movie_year) != year:
+                continue
             best_score = score
             best_match = movie
             if score >= 98.0:
                 break
 
     if best_match and best_score >= 80:
-        ia.update(best_match)  # makes a second request to get detailed info.
         imdb_title = best_match.get("title")
-        imdb_year = str(best_match.get("year"))
+        imdb_year = best_match.get("year")
         if imdb_title and imdb_year:  # return the fixed title and year
             click.echo(f"🔎 Found: {imdb_title} ({imdb_year})")
-            return imdb_title, imdb_year
+            return imdb_title, str(imdb_year)
 
     return title, year
 
@@ -139,11 +146,10 @@ async def _process_files(directory: Path) -> None:
         raw_filename = file.name
 
         # 1) extract_title_and_year now handles prefix-stripping
-        info = extract_title_and_year(raw_filename)
-        if not info:
+        title, year = extract_title_and_year(raw_filename)
+        if not title or not year:
             click.echo(f"⏩ Skipping (no title/year): {raw_filename}")
             continue
-        title, year = info
 
         # 2) skip files already beginning with “Title (Year)”
         formatted_prefix = f"{title} ({year})"
@@ -153,6 +159,10 @@ async def _process_files(directory: Path) -> None:
 
         click.echo(f"🔎 Looking up: {title} ({year})")
         imdb_title, imdb_year = fetch_info_from_imdb(title, year)
+
+        if not imdb_title or not imdb_year:
+            click.echo(f"⏩ Skipping (no IMDb match): {raw_filename}")
+            continue
 
         # 3) rebuild_filename expects the *cleaned* substring:
         #    we re-slice from the first occurrence of the year
