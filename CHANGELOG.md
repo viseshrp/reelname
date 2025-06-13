@@ -5,31 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.0.2] - <Unreleased>
-
-### Added
-
--
-
-### Changed
-
--
-
-### Deprecated
-
--
-
-### Removed
-
--
+## [2.0.4] - 2025-06-13
 
 ### Fixed
 
--
-
-## Security
-
--
+- IMDb search and matching
 
 ## [2.0.3] - 2025-05-13
 
