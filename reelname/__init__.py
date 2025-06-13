@@ -1,5 +1,3 @@
-"""Top-level package for reelname."""
-
 from ._version import __version__
 from .cli import main
 

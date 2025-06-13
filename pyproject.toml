@@ -44,22 +44,30 @@ reelname = "reelname.__main__:main"
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.2.0",
-    "uv>=0.6.17",
-    "tox>=4.25.0",
-    "tox-uv>=1.25.0",
-    "tox-gh-actions>=3.3.0",
-    "mypy>=1.15.0",
-    "deptry>=0.23.0",
-    "pytest>=8.3.5",
-    "vulture>=2.14",
-    "cogapp>=3.4.1",
-    "twine>=6.1.0",
-    "ipdb>=0.13.13",
+    "pre-commit",
+    "pre-commit-hooks",  # for check-case-conflict, etc.
+    "uv",
+    "tox",
+    "tox-uv",
+    "tox-gh-actions",
+    "mypy",
+    "deptry",
+    "black",
+    "ruff",
+    "pip-audit",
+    "bandit[toml]",
+    "codespell",
+    "vulture",
+    "pytest",
+    "vulture",
+    "cogapp",
+    "twine",
+    "ipdb",
+    "hatch",
 ]
 
 [build-system]
-requires = ["hatchling", "hatch-timestamp-version>=0.0.7"]
+requires = ["hatchling", "hatch-timestamp-version"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -69,12 +77,16 @@ validate-bump = true
 
 [tool.hatch.version.raw-options]
 local_scheme = "no-local-version"
+timestamp_format = "long"
 
 [tool.hatch.build.targets.wheel]
 packages = ["reelname"]
 
 [tool.hatch.build.targets.editable]
 packages = ["reelname"]
+
+[tool.hatch.envs.default]
+path = ".venv"
 
 [tool.uv]
 default-groups = "all"
@@ -113,6 +125,7 @@ filterwarnings = [
 [tool.ruff]
 target-version = "py39"
 line-length = 100
+fix = true
 exclude = [".venv", "__init__.py"]
 
 [tool.ruff.lint]
@@ -166,6 +179,7 @@ max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+"scripts/*.py" = ["T201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["reelname", "tests"]
@@ -181,12 +195,17 @@ skip = '*.pyc,*.xml,*.gif,*.png,*.jpg,*.js,*.html,*.json,*.gz,Makefile'
 quiet-level = 3
 
 [tool.bandit]
-targets = ["reelname", ]
-recursive = true
-number = 3
-severity_level = "high"
-require_serial = true
-exclude_dirs = ["venv/*", ".venv/*", "tests/*"]
+targets = ["reelname"]
+exclude_dirs = ["venv", ".venv", "tests"]
+
+[tool.vulture]
+paths = ["reelname", "tests"]
+min_confidence = 80
+sort_by_size = true
+exclude = ["venv/", ".venv/"]
+
+[tool.deptry]
+exclude = ["venv/.*", ".venv/.*", "tests/.*"]
 
 [tool.pre-commit.default_language_versions]
 python = "3.13"

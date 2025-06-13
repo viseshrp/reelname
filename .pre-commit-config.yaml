@@ -1,57 +1,74 @@
 repos:
   # 🧰 Built-in hooks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  - repo: local
     hooks:
       - id: check-case-conflict
+        entry: check-case-conflict
+        language: system
+
       - id: check-merge-conflict
+        entry: check-merge-conflict
+        language: system
+
       - id: check-toml
+        entry: check-toml
+        language: system
+
       - id: check-yaml
+        entry: check-yaml
+        language: system
+
       - id: end-of-file-fixer
+        entry: end-of-file-fixer
+        language: system
+
       - id: trailing-whitespace
+        entry: trailing-whitespace
+        language: system
         exclude: \.py$  # Ruff handles Python files
 
-  # ✨ Ruff for lint + format
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.13
+  # 🧪 Typing, dependency, security checks
+  - repo: local
+    hooks:
+      - id: black
+        entry: black
+        language: system
+
+  - repo: local
     hooks:
       # Run the linter alone
       - id: ruff-check
-        args: [
-          --fix,
-          --exit-non-zero-on-fix
-        ]
+        entry: ruff check
+        language: system
 
-  # 🧪 Typing, dependency, security checks
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-        args: [
-          --line-length=100,
-          --target-version=py39
-        ]
-
-  - repo: https://github.com/pypa/pip-audit
-    rev: v2.9.0
+  - repo: local
     hooks:
       - id: pip-audit
+        entry: pip-audit
+        language: system
         args: [ "--strict" ]
         pass_filenames: false
 
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.3
+  - repo: local
     hooks:
       - id: bandit
-        args: [ "-lll", "-n", "3", "-r", "-x", "venv/*,setup.py,tests/*" ]
+        entry: bandit
+        language: system
+        args: [
+          "-c", "pyproject.toml",
+          "-r",
+          "-n", "3",
+          "--severity-level", "high"
+        ]
 
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+  - repo: local
     hooks:
       - id: codespell
+        entry: codespell
+        language: system
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0
+    rev: v0.44.0
     hooks:
       - id: markdownlint
         args: [ --fix, --disable, MD024 ]
@@ -64,23 +81,14 @@ repos:
         entry: mypy
         language: system
         types: [ python ]
-        args: [
-          "--disallow-untyped-defs",
-          "--no-implicit-optional",
-          "--warn-unused-ignores",
-          "--warn-return-any"
-        ]
+        args: [ "--config-file=pyproject.toml" ]
 
       - id: vulture
         name: vulture
         entry: vulture
         language: system
         types: [ python ]
-        args: [
-          "reelname",
-          "tests",
-          "--min-confidence", "80"
-        ]
+        args: [ "--config", "pyproject.toml" ]
         pass_filenames: false
 
       - id: deptry
@@ -89,6 +97,7 @@ repos:
         language: python
         language_version: python3
         types: [ python ]
+        args: [ "--config", "pyproject.toml" ]
         pass_filenames: false
 
       - id: cog
