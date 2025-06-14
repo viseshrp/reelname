@@ -13,10 +13,6 @@
 
 ![Demo](https://raw.githubusercontent.com/viseshrp/reelname/main/demo.gif)
 
-## 🛠️ Features
-
-* Fixes media filenames with random characters.
-
 ## 📐 Requirements
 
 * Python >= 3.9
@@ -37,7 +33,7 @@ reelname --help
 
 ## 🛠️ Features
 
-* Does stuff
+* Fixes media filenames with random characters.
 
 ## 🧾 Changelog
 
