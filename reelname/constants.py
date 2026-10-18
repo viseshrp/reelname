@@ -37,6 +37,57 @@ EPISODE_PATTERN: Pattern[str] = re.compile(
     r"|(?P<x_season>\d{1,2})x(?P<x_episode>\d{2,3}))(?!\d)"
 )
 
+# Matches the air date of a daily show's episode, where the show name ends:
+#   "The.Daily.Show.2024.01.15", "Show 2024-01-15"
+# Regex breakdown:
+#   (?<![A-Za-z0-9])                → Not preceded by a letter or digit
+#   (?P<year>\d{4})[.\-_ ]          → Year, then a separator
+#   (?P<month>\d{2})[.\-_ ]         → Month, then a separator
+#   (?P<day>\d{2})                  → Day
+#   (?![A-Za-z0-9])                 → Not followed by a letter or digit
+AIR_DATE_PATTERN: Pattern[str] = re.compile(
+    r"(?<![A-Za-z0-9])(?P<year>\d{4})[.\-_ ](?P<month>\d{2})[.\-_ ](?P<day>\d{2})(?![A-Za-z0-9])"
+)
+
+# Matches an IMDb ID, in a name ("Movie {imdb-tt1375666}") or an .nfo file
+# ("https://www.imdb.com/title/tt1375666/").
+# Regex breakdown:
+#   (?<![A-Za-z0-9])       → Not preceded by a letter or digit
+#   tt\d{7,8}              → "tt" and 7 or 8 digits
+#   (?![A-Za-z0-9])        → Not followed by a letter or digit
+IMDB_ID_PATTERN: Pattern[str] = re.compile(r"(?<![A-Za-z0-9])tt\d{7,8}(?![A-Za-z0-9])")
+
+# Folder names that say nothing about the title inside, so they are never looked up:
+#   "Downloads", "Movies", "TV Shows", "Season 01", "Subs", ...
+GENERIC_FOLDER_PATTERN: Pattern[str] = re.compile(
+    r"^(?:downloads?|movies?|films?|tv|tv[ ._-]?shows?|series|shows?|videos?|media|complete[d]?"
+    r"|incoming|torrents?|seeding|library|new[ ._-]?folder|tmp|temp|specials?|extras?"
+    r"|featurettes?|subs?|subtitles?|samples?"
+    r"|(?:season|series|staffel|saison)[ ._-]*\d{1,2}|s\d{1,2})$",
+    re.IGNORECASE,
+)
+
+# Matches a season folder ("Season 01", "S01"), whose parent names the show.
+SEASON_FOLDER_PATTERN: Pattern[str] = re.compile(
+    r"^(?:(?:season|series|staffel|saison)[ ._-]*\d{1,2}|s\d{1,2})$", re.IGNORECASE
+)
+
+# Matches a season marker anywhere in a folder name: "The.Office.US.S01.720p", "Show Season 2"
+SEASON_MARKER_PATTERN: Pattern[str] = re.compile(
+    r"(?<![A-Za-z0-9])(?:s\d{1,2}|season[ ._-]*\d{1,2})(?![A-Za-z0-9])", re.IGNORECASE
+)
+
+# Matches a season marker at the end of a show folder name: "The.Office.US.S01", "Show Season 2"
+TRAILING_SEASON_PATTERN: Pattern[str] = re.compile(
+    r"[ ._-]+(?:s\d{1,2}|season[ ._-]*\d{1,2})$", re.IGNORECASE
+)
+
+# Blu-ray and DVD structures: their files must keep their names, so they are never entered.
+DISC_FOLDERS: frozenset[str] = frozenset({"bdmv", "video_ts", "audio_ts", "certificate"})
+
+# File systems cap a name at 255 bytes.
+MAX_NAME_BYTES = 255
+
 # Matches release info that marks where a title without a year ends:
 #   "Dune.Part.Two.1080p.WEB-DL", "Some Title x264", "Some.Title.REMASTERED.BluRay"
 # Technical tokens match in any case. Edition tokens must be upper case, so titles
@@ -112,7 +163,17 @@ MEDIA_EXTENSIONS: frozenset[str] = VIDEO_EXTENSIONS | SUBTITLE_EXTENSIONS
 # Files renamed along with a video whose name they start with ("Movie.en.srt", "Movie.nfo").
 SIDECAR_EXTENSIONS: frozenset[str] = SUBTITLE_EXTENSIONS | {".nfo"}
 
-TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/{kind}"
+TMDB_API_URL = "https://api.themoviedb.org/3/"
+
+# TMDb requests that hit a rate limit (429), a server error or a network problem are
+# retried, waiting 1s then 2s, or as long as TMDb's Retry-After asks (up to 10s).
+TMDB_ATTEMPTS = 3
+TMDB_RETRY_DELAY = 1.0
+TMDB_MAX_RETRY_DELAY = 10.0
+
+# When nothing matches by title, the alternative titles of this many same-year
+# candidates are checked too ("Gisaengchung" finds "Parasite").
+ALTERNATIVE_TITLE_CANDIDATES = 3
 
 # Minimum match scores: a year in the filename confirms a candidate, so it can be fuzzier.
 MATCH_SCORE_WITH_YEAR = 80.0

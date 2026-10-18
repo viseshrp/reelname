@@ -19,6 +19,9 @@ class FakeTMDb:
     def __init__(self) -> None:
         self.results: dict[str, list[dict[str, Any]]] = {}
         self.queries: list[tuple[str, str, str | None]] = []
+        # IMDb ID -> /find response, and TMDb ID -> alternative titles
+        self.imdb: dict[str, dict[str, Any]] = {}
+        self.alternative: dict[int, list[str]] = {}
 
     def search(
         self, kind: str, query: str, year: str | None, _api_key: str
@@ -31,6 +34,14 @@ class FakeTMDb:
         )
         return [{title_field: query, date_field: f"{year or YEARLESS_YEAR}-01-01"}]
 
+    def find(self, imdb_id: str, _api_key: str) -> dict[str, Any]:
+        self.queries.append(("find", imdb_id, None))
+        return self.imdb.get(imdb_id, {"movie_results": [], "tv_results": []})
+
+    def alternative_titles(self, kind: str, tmdb_id: int, _api_key: str) -> list[str]:
+        self.queries.append(("alternative_titles", kind, str(tmdb_id)))
+        return self.alternative.get(tmdb_id, [])
+
 
 @pytest.fixture(autouse=True)
 def fake_tmdb(
@@ -42,4 +53,6 @@ def fake_tmdb(
     monkeypatch.setenv("REELNAME_CACHE_DIR", str(tmp_path_factory.mktemp("cache")))
     monkeypatch.setenv("REELNAME_DATA_DIR", str(tmp_path_factory.mktemp("data")))
     monkeypatch.setattr(tmdb, "search", fake.search)
+    monkeypatch.setattr(tmdb, "find", fake.find)
+    monkeypatch.setattr(tmdb, "alternative_titles", fake.alternative_titles)
     return fake

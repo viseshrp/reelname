@@ -5,14 +5,14 @@ import io
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
 import pytest
 
 from reelname import tmdb
 from reelname.constants import CACHE_TTL_HIT, CACHE_TTL_MISS
-from reelname.exceptions import TMDbAuthError
+from reelname.exceptions import TMDbAuthError, TMDbRequestError
 from reelname.parsing import ParsedName
 from reelname.tmdb import Match, find_matches, get_match_score
 
@@ -182,3 +182,156 @@ def test_search_rejected_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(TMDbAuthError):
         real_search("movie", "Inception", "2010", "bad-key")
+
+
+def test_match_score_ignores_accents() -> None:
+    assert get_match_score("Amelie", "Amélie") >= 98
+
+
+def test_find_matches_on_original_title(fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.results["Le Fabuleux Destin d Amelie Poulain"] = [
+        {
+            "title": "Amélie",
+            "original_title": "Le Fabuleux Destin d'Amélie Poulain",
+            "release_date": "2001-04-25",
+        }
+    ]
+    parsed = movie("Le Fabuleux Destin d Amelie Poulain", "2001")
+    assert find_matches(parsed, "key") == [Match("Amélie", "2001")]
+
+
+def test_find_matches_falls_back_to_alternative_titles(fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.results["Gisaengchung"] = [
+        {
+            "id": 496243,
+            "title": "Parasite",
+            "original_title": "기생충",
+            "release_date": "2019-05-30",
+        }
+    ]
+    fake_tmdb.alternative[496243] = ["Gisaengchung", "Parasite: Black and White"]
+
+    assert find_matches(movie("Gisaengchung", "2019"), "key") == [Match("Parasite", "2019")]
+    assert ("alternative_titles", "movie", "496243") in fake_tmdb.queries
+
+
+def test_alternative_titles_only_when_no_title_fits(fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.results["Inception"] = [
+        {"id": 27205, "title": "Inception", "release_date": "2010-07-15"}
+    ]
+
+    find_matches(movie("Inception", "2010"), "key")
+
+    assert not any(query[0] == "alternative_titles" for query in fake_tmdb.queries)
+
+
+@pytest.mark.parametrize("is_episode, expected", [(False, "Inception"), (True, "The Office")])
+def test_match_imdb_id_picks_the_files_kind(
+    fake_tmdb: FakeTMDb, is_episode: bool, expected: str
+) -> None:
+    fake_tmdb.imdb["tt0000001"] = {
+        "movie_results": [{"title": "Inception", "release_date": "2010-07-15"}],
+        "tv_results": [{"name": "The Office", "first_air_date": "2005-03-24"}],
+    }
+    match = tmdb.match_imdb_id("tt0000001", is_episode, "key")
+    assert match is not None
+    assert match.title == expected
+
+
+def test_match_imdb_id_is_cached(fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.imdb["tt1375666"] = {
+        "movie_results": [{"title": "Inception", "release_date": "2010-07-15"}]
+    }
+    tmdb.match_imdb_id("tt1375666", False, "key")
+    tmdb.match_imdb_id("tt1375666", False, "key")
+    assert fake_tmdb.queries == [("find", "tt1375666", None)]
+
+
+def _http_error(code: int, retry_after: str | None = None) -> HTTPError:
+    headers = Message()
+    if retry_after:
+        headers["Retry-After"] = retry_after
+    return HTTPError("https://api.themoviedb.org/3/search/movie", code, "error", headers, None)
+
+
+def _flaky_urlopen(failures: list[Exception], calls: list[str]) -> Any:
+    """Raise each of `failures` in turn, then answer with an empty result list."""
+
+    def fake_urlopen(request: Request, **_kwargs: Any) -> io.BytesIO:
+        calls.append(request.full_url)
+        if failures:
+            raise failures.pop(0)
+        return io.BytesIO(b'{"results": []}')
+
+    return fake_urlopen
+
+
+@pytest.mark.parametrize(
+    "failures, expected_sleeps",
+    [
+        ([_http_error(429, retry_after="3")], [3.0]),
+        ([_http_error(503), _http_error(502)], [1.0, 2.0]),
+        ([URLError("connection reset")], [1.0]),
+        ([_http_error(429, retry_after="120")], [10.0]),
+    ],
+    ids=["rate-limited", "server-errors", "network", "long-retry-after-capped"],
+)
+def test_requests_are_retried(
+    monkeypatch: pytest.MonkeyPatch, failures: list[Exception], expected_sleeps: list[float]
+) -> None:
+    calls: list[str] = []
+    sleeps: list[float] = []
+    monkeypatch.setattr(tmdb, "urlopen", _flaky_urlopen(list(failures), calls))
+    monkeypatch.setattr(tmdb, "time", SimpleNamespace(sleep=sleeps.append, time=lambda: 0.0))
+
+    assert real_search("movie", "Inception", "2010", "key") == []
+    assert sleeps == expected_sleeps
+    assert len(calls) == len(expected_sleeps) + 1
+
+
+@pytest.mark.parametrize(
+    "failures",
+    [
+        [_http_error(503), _http_error(503), _http_error(503)],
+        [_http_error(404)],
+    ],
+    ids=["gives-up-after-three", "no-retry-on-404"],
+)
+def test_requests_fail_eventually(
+    monkeypatch: pytest.MonkeyPatch, failures: list[Exception]
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(tmdb, "urlopen", _flaky_urlopen(list(failures), calls))
+    monkeypatch.setattr(tmdb, "time", SimpleNamespace(sleep=lambda _s: None, time=lambda: 0.0))
+
+    with pytest.raises(TMDbRequestError):
+        real_search("movie", "Inception", "2010", "key")
+    assert len(calls) == len(failures)
+
+
+BIRDMAN = "Birdman or (The Unexpected Virtue of Ignorance)"
+
+
+@pytest.mark.parametrize(
+    "query, year, title, matches",
+    [
+        ("Birdman", "2014", BIRDMAN, True),
+        ("Birdman", None, BIRDMAN, False),  # without a year, a prefix alone is too weak
+        ("Bird", "2014", BIRDMAN, False),  # not a whole word
+        ("Up", "2009", "Up in the Air", False),  # too short to count
+    ],
+)
+def test_find_matches_accepts_a_longer_title_starting_with_the_name(
+    fake_tmdb: FakeTMDb, query: str, year: str | None, title: str, matches: bool
+) -> None:
+    fake_tmdb.results[query] = [{"title": title, "release_date": f"{year or '2014'}-10-17"}]
+    expected = [Match(title, year or "2014")] if matches else []
+    assert find_matches(movie(query, year), "key") == expected
+
+
+def test_closer_title_beats_a_longer_one(fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.results["Alien"] = [
+        {"title": "Alien Nation", "release_date": "1979-01-01"},
+        {"title": "Alien", "release_date": "1979-05-25"},
+    ]
+    assert find_matches(movie("Alien", "1979"), "key") == [Match("Alien", "1979")]

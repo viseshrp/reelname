@@ -89,3 +89,54 @@ def test_dry_run_keeps_no_history(tmp_path: Path) -> None:
     rename(tmp_path, "--dry-run")
 
     assert not history_path().exists()
+
+
+def test_undo_hardlink_removes_only_the_link(tmp_path: Path) -> None:
+    original = tmp_path / "Inception.2010.mkv"
+    original.write_text("video")
+    rename(tmp_path, "--hardlink")
+    assert names(tmp_path) == ["Inception (2010).mkv", "Inception.2010.mkv"]
+
+    output = rename(tmp_path, "--undo")
+
+    assert names(tmp_path) == ["Inception.2010.mkv"]
+    assert original.read_text() == "video"
+    assert "Removed link" in output
+
+
+def test_undo_hardlink_keeps_a_file_that_is_no_longer_the_link(tmp_path: Path) -> None:
+    (tmp_path / "Inception.2010.mkv").write_text("video")
+    rename(tmp_path, "--hardlink")
+    link = tmp_path / "Inception (2010).mkv"
+    link.unlink()
+    link.write_text("a different file now")
+
+    output = rename(tmp_path, "--undo")
+
+    assert link.read_text() == "a different file now"
+    assert "no longer a link" in output
+
+
+def test_undo_brings_files_back_from_output(tmp_path: Path) -> None:
+    downloads, library = tmp_path / "downloads", tmp_path / "library"
+    downloads.mkdir()
+    library.mkdir()
+    (downloads / "Inception.2010.mkv").write_bytes(b"")
+    result = CliRunner().invoke(main, ["-o", str(library), str(downloads)])
+    assert result.exit_code == 0, result.output
+
+    rename(downloads, "--undo")
+
+    assert names(downloads) == ["Inception.2010.mkv"]
+    assert names(library) == []
+
+
+def test_undo_covers_subfolders_of_a_recursive_run(tmp_path: Path) -> None:
+    movies = tmp_path / "movies"
+    movies.mkdir()
+    (movies / "Inception.2010.mkv").write_bytes(b"")
+    rename(tmp_path, "-r")
+
+    rename(tmp_path, "--undo")
+
+    assert names(movies) == ["Inception.2010.mkv"]

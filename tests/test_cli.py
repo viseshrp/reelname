@@ -1,10 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
+import errno
 from pathlib import Path
 
 from click.testing import CliRunner
 import pytest
 
-from reelname import __version__, cli, tmdb
+from reelname import __version__, cli, tmdb, utils
 from reelname.cli import main
 from reelname.exceptions import TMDbAuthError, TMDbRequestError
 from reelname.reelname import run_once
@@ -263,3 +264,158 @@ def test_run_once_without_current_event_loop(tmp_path: Path) -> None:
         pool.submit(run_once, str(tmp_path), "test-key").result()
 
     assert (tmp_path / "Inception (2010).mkv").exists()
+
+
+def touch(path: Path, text: str = "") -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+def test_recursive_renames_below_but_not_inside_discs_or_hidden_folders(tmp_path: Path) -> None:
+    touch(tmp_path / "a" / "Inception.2010.mkv")
+    touch(tmp_path / ".hidden" / "Interstellar.2014.mkv")
+    touch(tmp_path / "Heat.1995.BluRay" / "BDMV" / "STREAM" / "Heat.1995.m2ts")
+
+    result = CliRunner().invoke(main, ["-r", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert names(tmp_path / "a") == ["Inception (2010).mkv"]
+    assert names(tmp_path / ".hidden") == ["Interstellar.2014.mkv"]
+    assert names(tmp_path / "Heat.1995.BluRay" / "BDMV" / "STREAM") == ["Heat.1995.m2ts"]
+
+
+def test_without_recursive_subfolders_are_left_alone(tmp_path: Path) -> None:
+    touch(tmp_path / "a" / "Inception.2010.mkv")
+
+    CliRunner().invoke(main, [str(tmp_path)])
+
+    assert names(tmp_path / "a") == ["Inception.2010.mkv"]
+
+
+def test_output_moves_renamed_files_there(tmp_path: Path) -> None:
+    downloads, library = tmp_path / "downloads", tmp_path / "library"
+    touch(downloads / "Inception.2010.1080p.mkv", "video")
+    touch(downloads / "Inception.2010.1080p.en.srt", "subs")
+    library.mkdir()
+
+    result = CliRunner().invoke(main, ["-o", str(library), str(downloads)])
+
+    assert result.exit_code == 0, result.output
+    assert names(downloads) == []
+    assert names(library) == ["Inception (2010) 1080p.en.srt", "Inception (2010) 1080p.mkv"]
+
+
+def test_output_takes_already_formatted_files_too(tmp_path: Path, fake_tmdb: FakeTMDb) -> None:
+    downloads, library = tmp_path / "downloads", tmp_path / "library"
+    touch(downloads / "Inception (2010) 1080p.mkv")
+    library.mkdir()
+
+    CliRunner().invoke(main, ["-o", str(library), str(downloads)])
+
+    assert names(library) == ["Inception (2010) 1080p.mkv"]
+    assert fake_tmdb.queries == [], "an already formatted name needs no lookup"
+
+
+def test_recursive_output_inside_the_tree_is_not_reprocessed(
+    tmp_path: Path, fake_tmdb: FakeTMDb
+) -> None:
+    touch(tmp_path / "Inception.2010.mkv")
+    (tmp_path / "library").mkdir()
+    touch(tmp_path / "library" / "Heat.1995.mkv")
+
+    CliRunner().invoke(main, ["-r", "-o", str(tmp_path / "library"), str(tmp_path)])
+
+    assert names(tmp_path / "library") == ["Heat.1995.mkv", "Inception (2010).mkv"]
+    assert [q[1] for q in fake_tmdb.queries] == ["Inception"]
+
+
+def test_hardlink_keeps_the_original(tmp_path: Path) -> None:
+    original = touch(tmp_path / "Inception.2010.mkv", "video")
+
+    result = CliRunner().invoke(main, ["--hardlink", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert names(tmp_path) == ["Inception (2010).mkv", "Inception.2010.mkv"]
+    assert (tmp_path / "Inception (2010).mkv").samefile(original)
+    assert "🔗 Linked: Inception.2010.mkv → Inception (2010).mkv" in result.output
+
+    again = CliRunner().invoke(main, ["--hardlink", str(tmp_path)])
+    assert "Already linked: Inception.2010.mkv" in again.output
+
+
+def test_hardlink_into_output(tmp_path: Path) -> None:
+    downloads, library = tmp_path / "downloads", tmp_path / "library"
+    original = touch(downloads / "Inception.2010.mkv")
+    library.mkdir()
+
+    CliRunner().invoke(main, ["--hardlink", "-o", str(library), str(downloads)])
+
+    assert names(downloads) == ["Inception.2010.mkv"]
+    assert (library / "Inception (2010).mkv").samefile(original)
+
+
+def test_long_names_are_cut_to_fit(tmp_path: Path, fake_tmdb: FakeTMDb) -> None:
+    title = "Birdman or The Unexpected Virtue of Ignorance"
+    fake_tmdb.results[title] = [
+        {"title": "Birdman or (The Unexpected Virtue of Ignorance)", "release_date": "2014-10-17"}
+    ]
+    # 255 bytes now, and longer once the title gains its brackets and "(2014)"
+    head = "Birdman.or.The.Unexpected.Virtue.of.Ignorance.2014.1080p."
+    name = head + "x" * (255 - len(head) - len(".mkv")) + ".mkv"
+    touch(tmp_path / name)
+
+    result = CliRunner().invoke(main, [str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    [renamed] = names(tmp_path)
+    assert renamed.startswith("Birdman or (The Unexpected Virtue of Ignorance) (2014) 1080p.xxx")
+    assert renamed.endswith("x.mkv")
+    assert len(renamed.encode()) == 255
+
+
+def test_a_failed_rename_skips_only_that_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_rename = utils.aiofiles.os.rename
+
+    async def rename(src: Path, dst: Path) -> None:
+        if src.name.startswith("Heat"):
+            raise PermissionError(13, "Permission denied")
+        await real_rename(src, dst)
+
+    monkeypatch.setattr(utils.aiofiles.os, "rename", rename)
+    touch(tmp_path / "Heat.1995.mkv")
+    touch(tmp_path / "Inception.2010.mkv")
+
+    result = CliRunner().invoke(main, [str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "⚠️ Couldn't rename Heat.1995.mkv: Permission denied" in result.output
+    assert names(tmp_path) == ["Heat.1995.mkv", "Inception (2010).mkv"]
+
+
+@pytest.mark.parametrize("options", [["--undo", "-r"], ["--undo", "--hardlink"]])
+def test_undo_takes_only_dry_run(tmp_path: Path, options: list[str]) -> None:
+    result = CliRunner().invoke(main, [*options, str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "--undo only combines with --dry-run" in result.output
+
+
+def test_output_on_another_drive_is_copied_then_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def cross_device(_src: Path, _dst: Path) -> None:
+        raise OSError(errno.EXDEV, "Invalid cross-device link")
+
+    monkeypatch.setattr(utils.aiofiles.os, "rename", cross_device)
+    downloads, library = tmp_path / "downloads", tmp_path / "library"
+    touch(downloads / "Inception.2010.mkv", "video")
+    library.mkdir()
+
+    result = CliRunner().invoke(main, ["-o", str(library), str(downloads)])
+
+    assert result.exit_code == 0, result.output
+    assert names(downloads) == []
+    assert (library / "Inception (2010).mkv").read_text() == "video"

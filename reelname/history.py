@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import errno
 import json
 import os
 from pathlib import Path
+import shutil
 from typing import Any
 import uuid
 
@@ -53,22 +55,69 @@ class RunLog:
     def __init__(self) -> None:
         self.run_id = uuid.uuid4().hex
 
-    def record(self, src: Path, dst: Path) -> None:
-        _append({"run": self.run_id, "time": _now(), "from": _absolute(src), "to": _absolute(dst)})
+    def record(self, src: Path, dst: Path, action: str = "move") -> None:
+        """Log that `src` was moved (action "move") or hardlinked ("hardlink") to `dst`."""
+        _append(
+            {
+                "run": self.run_id,
+                "time": _now(),
+                "action": action,
+                "from": _absolute(src),
+                "to": _absolute(dst),
+            }
+        )
+
+
+def _touches(entry: dict[str, Any], folder: Path) -> bool:
+    """The rename happened in `folder` or below it, on either end."""
+    parents = (Path(entry["from"]).parent, Path(entry["to"]).parent)
+    return any(parent == folder or folder in parent.parents for parent in parents)
+
+
+def _move_back(dst: Path, src: Path) -> None:
+    try:
+        os.rename(dst, src)
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            raise
+        shutil.move(dst, src)  # it was moved across drives
+
+
+def _undo_entry(entry: dict[str, Any], dry_run: bool) -> None:
+    src, dst = Path(entry["from"]), Path(entry["to"])
+    if entry.get("action") == "hardlink":
+        # the original stayed; remove the link, but only if it still is one
+        if not (dst.exists() and src.exists() and os.path.samefile(src, dst)):
+            click.echo(f"⏩ Skipping (no longer a link to {src.name}): {dst.name}")
+        elif dry_run:
+            click.echo(f"📝 Would remove link: {dst}")
+        else:
+            dst.unlink()
+            click.echo(f"🗑️ Removed link: {dst}")
+        return
+
+    if not dst.exists():
+        click.echo(f"⏩ Skipping (no longer there): {dst.name}")
+    elif src.exists():
+        click.echo(f"⏩ Skipping (would overwrite {src.name}): {dst.name}")
+    elif dry_run:
+        click.echo(f"📝 Would restore: {dst.name} → {src.name}")
+    else:
+        _move_back(dst, src)
+        click.echo(f"↩️ Restored: {dst.name} → {src.name}")
 
 
 def undo_last_run(directory: Path, dry_run: bool = False) -> None:
     """
-    Rename the files of the most recent run in `directory` back, newest first.
-    A file is left alone if it's gone or its old name is taken again.
+    Undo the most recent run that renamed files in `directory` or below it, newest
+    rename first: moved files go back, hardlinks are removed. A file is left alone
+    if it's gone or its old name is taken again.
     """
     entries = _read()
     undone = {e["undo"] for e in entries if "undo" in e}
-    folder = str(directory.resolve())
+    folder = directory.resolve()
     runs = [
-        e["run"]
-        for e in entries
-        if "run" in e and e["run"] not in undone and str(Path(e["to"]).parent) == folder
+        e["run"] for e in entries if "run" in e and e["run"] not in undone and _touches(e, folder)
     ]
     if not runs:
         click.echo(f"Nothing to undo in {directory}")
@@ -76,16 +125,7 @@ def undo_last_run(directory: Path, dry_run: bool = False) -> None:
 
     run_id = runs[-1]
     for entry in reversed([e for e in entries if e.get("run") == run_id]):
-        src, dst = Path(entry["from"]), Path(entry["to"])
-        if not dst.exists():
-            click.echo(f"⏩ Skipping (no longer there): {dst.name}")
-        elif src.exists():
-            click.echo(f"⏩ Skipping (would overwrite {src.name}): {dst.name}")
-        elif dry_run:
-            click.echo(f"📝 Would restore: {dst.name} → {src.name}")
-        else:
-            os.rename(dst, src)
-            click.echo(f"↩️ Restored: {dst.name} → {src.name}")
+        _undo_entry(entry, dry_run)
 
     if not dry_run:
         _append({"undo": run_id, "time": _now()})

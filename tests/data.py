@@ -81,6 +81,9 @@ MOVIE_RENAME_CASES = [
     ("Dune.Part.Two.1080p.WEB-DL.mkv", f"Dune Part Two ({YEARLESS_YEAR}) 1080p.WEB-DL.mkv"),
     # Title words that are also release info stay in the title
     ("Uncut.Gems.2019.1080p.mkv", "Uncut Gems (2019) 1080p.mkv"),
+    # Parts of one movie keep their part number
+    ("Movie.Name.2010.CD1.XviD.avi", "Movie Name (2010) CD1.XviD.avi"),
+    ("Movie.Name.2010.CD2.XviD.avi", "Movie Name (2010) CD2.XviD.avi"),
 ]
 
 # TV episodes: the show name ends at the episode marker, which starts the rest
@@ -102,6 +105,14 @@ TV_RENAME_CASES = [
     (
         "2HD. Suburgatory.S01E15.READNFO.HDTV.XviD-2HD.mkv",
         f"Suburgatory ({YEARLESS_YEAR}) S01E15.READNFO.HDTV.XviD-2HD.mkv",
+    ),
+    # Files holding several episodes keep the whole range
+    ("Show.Name.2019.S01E01-E03.1080p.mkv", "Show Name (2019) S01E01-E03.1080p.mkv"),
+    ("Show.Name.S02E05E06.720p.mkv", f"Show Name ({YEARLESS_YEAR}) S02E05E06.720p.mkv"),
+    # Daily shows are named by air date
+    (
+        "The.Daily.Show.2024.01.15.Guest.720p.WEB.mkv",
+        f"The Daily Show ({YEARLESS_YEAR}) 2024.01.15.Guest.720p.WEB.mkv",
     ),
 ]
 
@@ -149,4 +160,7 @@ EXTRACT_CASES = [
     # A group prefix that the name doesn't end with is part of the title
     ("Mr. Robot.S01E01.mkv", ("Mr Robot", None)),
     ("S01E01.mkv", (None, None)),
+    ("The.Daily.Show.2024.01.15.Guest.720p.mkv", ("The Daily Show", None)),
+    # Not a real date, so a movie year and release info
+    ("Movie.2010.13.45.mkv", ("Movie", "2010")),
 ] + [(fn, (None, None)) for fn in SKIP_CASES]

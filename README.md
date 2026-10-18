@@ -40,6 +40,14 @@ reelname --dry-run /path/to/media
 reelname /path/to/media
 ```
 
+* Sort a downloads folder (and its subfolders) into a library without
+  breaking seeding torrents: the library gets hardlinks with the new names,
+  and the downloads stay as they are:
+
+```bash
+reelname -r --hardlink -o /path/to/library /path/to/downloads
+```
+
 * Changed your mind? Undo the last run in that folder:
 
 ```bash
@@ -58,13 +66,22 @@ reelname --help
   keeping the release info that follows.
 * Finds the title even without a year (`Dune.Part.Two.1080p.mkv`), and tells
   real years from numbers in titles (`Blade.Runner.2049.2017`).
+* Uses more than the file name when it has to: an IMDb ID in the name or in an
+  `.nfo` file, the release folder (`Inception.2010.1080p-GRP/abc123.mkv`), or
+  the show folder (`Breaking Bad/Season 1/S01E01.mkv`).
+* Matches original and alternative titles (`Gisaengchung` → `Parasite`),
+  ignores accents (`Amelie` → `Amélie`), and finds long titles from their start
+  (`Birdman` → `Birdman or (The Unexpected Virtue of Ignorance)`).
 * Renames subtitles and `.nfo` files together with their video.
-* Turns colons into dashes (`Mission - Impossible`) instead of dropping them.
+* Turns colons into dashes (`Mission - Impossible`) and slashes into spaces
+  (`Face Off`) instead of dropping them.
 * Only renames video and subtitle files, and skips samples and trailers.
 * Leaves a file alone when TMDb doesn't confirm it, or when the name could be
   more than one title (like a remake).
 * Never overwrites an existing file.
-* Caches TMDb searches, and in watch mode waits for files to finish copying.
+* Never renames inside Blu-ray or DVD folders (`BDMV`, `VIDEO_TS`).
+* Caches TMDb searches, retries when TMDb is busy, and in watch mode waits for
+  files to finish copying.
 * Logs every rename, so `--undo` can put names back.
 
 Searches are cached in `~/.cache/reelname` and the rename history is kept in

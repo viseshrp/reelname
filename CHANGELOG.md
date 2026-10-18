@@ -19,10 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - TMDb searches are cached on disk for a week (a day when nothing was found).
 - Opt-in live TMDb tests: set `REELNAME_LIVE_TMDB_API_KEY` and run
   `pytest -m integration`.
+- Files are identified by an IMDb ID in their name, their folder's name or their
+  `.nfo`, and by their release or show folder when the name isn't enough. A
+  folder is only trusted when it agrees with the file name's title and year.
+- Original titles and TMDb's alternative titles are matched too, accents are
+  ignored, and a name that starts a longer title matches it when the year does.
+- `-r/--recursive` also renames files in subfolders, never inside Blu-ray or
+  DVD folders.
+- `-o/--output` puts renamed files in another folder, and `--hardlink` adds the
+  new name as a hardlink so the original stays (e.g. while seeding). `--undo`
+  removes such links again.
+- Daily shows named by air date (`Show.2024.01.15`) are recognised as episodes.
 
 ### Changed
 
-- Colons in titles become ` - ` instead of being dropped.
+- Colons in titles become ` - `, and slashes become spaces, instead of being
+  dropped.
 - Watch mode waits for files to stop changing before renaming them.
 - A leading release group (`LOL. Show.S01E01…-LOL`) is dropped from the name.
 
@@ -30,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Numbers that only look like years (`1080`, `2049` in
   `Blade.Runner.2049.2017`) are no longer taken as the release year.
+- TMDb rate limits, server errors and network hiccups are retried instead of
+  skipping the file.
+- A new name longer than the 255 bytes file systems allow is shortened, and a
+  file that can't be renamed (e.g. no permission) no longer stops the run.
 
 ## [3.0.0] - 2026-10-18
 

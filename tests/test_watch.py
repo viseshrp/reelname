@@ -70,3 +70,17 @@ def test_ignores_own_renames(tmp_path: Path) -> None:
         assert await wait_for(renamed)
 
     asyncio.run(scenario())
+
+
+def test_ignores_files_moved_out(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        handler = FileChangeHandler(tmp_path, "key", asyncio.get_running_loop(), SETTLE)
+        outside = tmp_path.parent / f"{tmp_path.name}-elsewhere"
+        outside.mkdir()
+        moved = outside / "Inception.2010.mkv"
+        moved.write_bytes(b"")
+        handler.on_moved(FileMovedEvent(str(tmp_path / moved.name), str(moved)))
+        await asyncio.sleep(SETTLE * 3)
+        assert handler._timer is None, "a file leaving the folder must not trigger a pass"
+
+    asyncio.run(scenario())

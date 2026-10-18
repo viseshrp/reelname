@@ -9,7 +9,7 @@ from watchdog.observers import Observer
 
 from .constants import WATCH_SETTLE_SECONDS
 from .exceptions import ReelNameError
-from .utils import _process_files
+from .utils import Options, _process_files
 
 
 def _size(path: Path) -> int | None:
@@ -31,12 +31,14 @@ class FileChangeHandler(FileSystemEventHandler):
         api_key: str,
         loop: asyncio.AbstractEventLoop,
         settle_seconds: float = WATCH_SETTLE_SECONDS,
+        options: Options | None = None,
     ) -> None:
         super().__init__()
         self.directory = directory
         self.api_key = api_key
         self.loop = loop
         self.settle_seconds = settle_seconds
+        self.options = options or Options()
         # Only touched on the event loop's thread
         self._sizes: dict[Path, int | None] = {}
         self._timer: asyncio.TimerHandle | None = None
@@ -54,9 +56,12 @@ class FileChangeHandler(FileSystemEventHandler):
             self.loop.call_soon_threadsafe(self._changed, Path(str(event.src_path)))
 
     def on_moved(self, event: FileSystemEvent) -> None:
-        # A file moved in from elsewhere counts as new; reelname's own renames don't.
+        # A file moved in from another folder counts as new; renames within a folder
+        # (what reelname itself does) and moves out of the watched folder don't.
         src, dest = Path(str(event.src_path)), Path(str(event.dest_path))
-        if not event.is_directory and src.parent != dest.parent:
+        root, folder = self.directory.resolve(), dest.parent.resolve()
+        arrived = folder == root or root in folder.parents
+        if not event.is_directory and src.parent != dest.parent and arrived:
             self.loop.call_soon_threadsafe(self._changed, dest)
 
     def _changed(self, path: Path) -> None:
@@ -85,22 +90,24 @@ class FileChangeHandler(FileSystemEventHandler):
             self._lock = asyncio.Lock()
         async with self._lock:
             try:
-                await _process_files(self.directory, self.api_key)
+                await _process_files(self.directory, self.api_key, self.options)
             except ReelNameError as exc:
                 click.echo(f"Error: {exc}")
 
 
-def watch_directory(directory: str, api_key: str) -> None:
+def watch_directory(directory: str, api_key: str, options: Options | None = None) -> None:
     """
-    Continuously watch `directory` and perform TMDb-based renaming.
+    Continuously watch `directory` (and below, with `recursive`) and perform
+    TMDb-based renaming.
     """
+    options = options or Options()
     dir_path = Path(directory)
     # Create the loop explicitly: asyncio.get_event_loop() raises on Python 3.14+
     # when no loop is running.
     loop = asyncio.new_event_loop()
-    handler = FileChangeHandler(dir_path, api_key, loop)
+    handler = FileChangeHandler(dir_path, api_key, loop, options=options)
     observer = Observer()
-    observer.schedule(handler, str(dir_path), recursive=False)
+    observer.schedule(handler, str(dir_path), recursive=options.recursive)
     observer.start()
     click.echo(f"👀 Watching: {dir_path!s}")
 
@@ -113,9 +120,10 @@ def watch_directory(directory: str, api_key: str) -> None:
     loop.close()
 
 
-def run_once(directory: str, api_key: str, dry_run: bool = False) -> None:
+def run_once(directory: str, api_key: str, options: Options | None = None) -> None:
     """
     Perform a single-pass scan of `directory` and rename matching files.
     """
-    asyncio.run(_process_files(Path(directory), api_key, dry_run))
-    click.echo("✅ Dry run complete." if dry_run else "✅ Run-once processing complete.")
+    options = options or Options()
+    asyncio.run(_process_files(Path(directory), api_key, options))
+    click.echo("✅ Dry run complete." if options.dry_run else "✅ Run-once processing complete.")
