@@ -39,6 +39,8 @@ repos:
         entry: mypy
         language: system
         types: [ python ]
+        # mypy 2's SQLite cache fails with "database is locked" if batches run in parallel
+        require_serial: true
         args: [ "--config-file=pyproject.toml" ]
 
       - id: pip-audit
