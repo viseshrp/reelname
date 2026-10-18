@@ -56,3 +56,26 @@ INVALID_FILENAME_CHARS: Pattern[str] = re.compile(r'[<>:"/\\|?*]|[ .]+$')
 URL_PREFIX_PATTERN: Pattern[str] = re.compile(
     r"^(?:www\.[\w.-]+|\w+\.\w{2,})(?:\s*[--]\s*)", re.IGNORECASE
 )
+
+# Matches sample and trailer clips (checked against the name without its extension) like:
+#   "Movie.2010.1080p-sample", "sample-movie.2010", "Movie (2010) [Trailer]"
+# but not titles that merely contain the word, like "Trailer.Park.Boys.2006".
+# Regex breakdown:
+#   (?:^|[\W_])            → Start of name, or a separator before the word
+#   (?:sample|trailer)     → The word "sample" or "trailer"
+#   (?:$|[-\)\]\}])        → End of name, a dash, or a closing bracket after the word
+SAMPLE_PATTERN: Pattern[str] = re.compile(
+    r"(?:^|[\W_])(?:sample|trailer)(?:$|[-\)\]\}])", re.IGNORECASE
+)
+
+# Extensions of files reelname renames: videos, and the subtitles that sit next to them.
+VIDEO_EXTENSIONS: frozenset[str] = frozenset(
+    {".3gp", ".avi", ".divx", ".flv", ".m2ts", ".m4v", ".mk3d", ".mkv", ".mov"}
+    | {".mp4", ".mpeg", ".mpg", ".ogm", ".rmvb", ".ts", ".vob", ".webm", ".wmv"}
+)
+SUBTITLE_EXTENSIONS: frozenset[str] = frozenset(
+    {".ass", ".idx", ".smi", ".srt", ".ssa", ".sub", ".sup", ".vtt"}
+)
+MEDIA_EXTENSIONS: frozenset[str] = VIDEO_EXTENSIONS | SUBTITLE_EXTENSIONS
+
+TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"

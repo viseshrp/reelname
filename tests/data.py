@@ -60,6 +60,28 @@ MOVIE_RENAME_CASES = [
         "rarbg.to - The Matrix 1999 1080p BluRay x264 AAC.mkv",
         "The Matrix (1999) 1080p BluRay x264 AAC.mkv",
     ),
+    # Year right before the extension: the extension must survive
+    ("Inception.2010.mkv", "Inception (2010).mkv"),
+    ("Inception [2010].mkv", "Inception (2010).mkv"),
+    # A title containing "trailer" is not a trailer
+    (
+        "Trailer.Park.Boys.The.Movie.2006.DVDRip.mkv",
+        "Trailer Park Boys The Movie (2006) DVDRip.mkv",
+    ),
+    # Subtitles are renamed alongside their video
+    (
+        "Inception.2010.1080p.BluRay.x264-REF.en.srt",
+        "Inception (2010) 1080p.BluRay.x264-REF.en.srt",
+    ),
+]
+
+# Files that have a title and year but must not be renamed: not media, or a sample/trailer
+NON_MEDIA_CASES = [
+    "Invoice 2023 final.pdf",
+    "Inception.2010.1080p.BluRay.x264-REF.nfo",
+    "Inception.2010.1080p.BluRay.x264-REF-sample.mkv",
+    "sample-inception.2010.1080p.mkv",
+    "Inception (2010) [Trailer].mp4",
 ]
 
 # Filenames that should be skipped because they lack a parsable year

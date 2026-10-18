@@ -17,3 +17,19 @@ class ReelNameError(Exception):
         if self.extra_detail:
             return f"{self.detail} :: {self.extra_detail}"
         return self.detail
+
+
+class TMDbAuthError(ReelNameError):
+    """
+    TMDb rejected the API key. Fatal: every lookup would fail.
+    """
+
+    detail = "TMDb rejected the API key. Check TMDB_API_KEY."
+
+
+class TMDbRequestError(ReelNameError):
+    """
+    A TMDb lookup failed for any other reason (network, server error, bad response).
+    """
+
+    detail = "TMDb lookup failed."

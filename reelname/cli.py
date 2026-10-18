@@ -1,7 +1,12 @@
+import os
+
 import click
 
 from ._version import __version__
+from .exceptions import ReelNameError
 from .reelname import run_once, watch_directory
+
+MISSING_API_KEY = "Set the TMDB_API_KEY environment variable to your TMDb API key."
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -22,7 +27,10 @@ from .reelname import run_once, watch_directory
 )
 def main(directory: str, watch: bool) -> None:
     """
-    Rename media files by correcting their titles via IMDb.
+    Rename media files by correcting their titles via TMDb.
+
+    Needs a TMDb API key or API read access token in the TMDB_API_KEY
+    environment variable. Files with no confirmed TMDb match are left alone.
 
     By default runs once; use -w/--watch to run continuously.
 
@@ -31,9 +39,15 @@ def main(directory: str, watch: bool) -> None:
       reelname /path/to/media
       reelname -w /path/to/media
     """
+    api_key = os.environ.get("TMDB_API_KEY")
+    if not api_key:
+        raise click.UsageError(MISSING_API_KEY)
     if not directory:
         directory = "."
-    if watch:
-        watch_directory(directory)
-    else:
-        run_once(directory)
+    try:
+        if watch:
+            watch_directory(directory, api_key)
+        else:
+            run_once(directory, api_key)
+    except ReelNameError as exc:
+        raise click.ClickException(str(exc)) from exc

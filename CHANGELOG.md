@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** look up titles on TMDb instead of IMDb. IMDb now blocks
+  Cinemagoer, so lookups had stopped working. Set `TMDB_API_KEY` to a TMDb API
+  key or read access token.
+- Files with no confirmed TMDb match are skipped instead of renamed from the
+  filename alone.
+- Only video and subtitle files are renamed; samples and trailers are skipped.
+
+### Fixed
+
+- Renaming could overwrite an existing file when two files cleaned up to the
+  same name.
+- The extension was lost when the year came right before it (`Movie.2010.mkv`).
+- Title matching was case-sensitive.
+- Crash on Python 3.14 (no current event loop).
+
 ## [2.0.4] - 2025-06-13
 
 ### Fixed
