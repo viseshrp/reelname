@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 
-from watchdog.events import FileCreatedEvent, FileModifiedEvent, FileMovedEvent
+from watchdog.events import DirCreatedEvent, FileCreatedEvent, FileModifiedEvent, FileMovedEvent
 
 from reelname.reelname import FileChangeHandler
 
@@ -82,5 +82,23 @@ def test_ignores_files_moved_out(tmp_path: Path) -> None:
         handler.on_moved(FileMovedEvent(str(tmp_path / moved.name), str(moved)))
         await asyncio.sleep(SETTLE * 3)
         assert handler._timer is None, "a file leaving the folder must not trigger a pass"
+
+    asyncio.run(scenario())
+
+
+def test_waits_for_a_folder_to_finish_copying(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        handler = FileChangeHandler(tmp_path, "key", asyncio.get_running_loop(), SETTLE)
+        stream = tmp_path / "Heat.1995.BluRay" / "BDMV" / "STREAM"
+        stream.mkdir(parents=True)
+        handler.on_created(DirCreatedEvent(str(tmp_path / "Heat.1995.BluRay")))
+
+        # files keep arriving inside the folder, with no events for the folder itself
+        for part in range(3):
+            await asyncio.sleep(SETTLE * 0.75)
+            (stream / f"0000{part}.m2ts").write_bytes(b"x" * (part + 1))
+            assert (tmp_path / "Heat.1995.BluRay").exists(), "renamed while still copying"
+
+        assert await wait_for(tmp_path / "Heat (1995) BluRay")
 
     asyncio.run(scenario())

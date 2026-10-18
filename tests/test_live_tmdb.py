@@ -7,15 +7,19 @@ holds a TMDb API key or read access token:
 
 import os
 from pathlib import Path
+import time
+from types import SimpleNamespace
+from typing import Any
 
 from click.testing import CliRunner
 import pytest
 
 from reelname import tmdb
 from reelname.cli import main
+from reelname.constants import CACHE_TTL_HIT
 
-# Bound at import, before the autouse fixture replaces them with fakes.
-REAL_REQUESTS = {name: getattr(tmdb, name) for name in ("search", "find", "alternative_titles")}
+# Bound at import, before the autouse fixture replaces it with a fake.
+REAL_REQUESTS = {"_request": tmdb._request}
 
 LIVE_KEY = os.environ.get("REELNAME_LIVE_TMDB_API_KEY")
 
@@ -48,6 +52,8 @@ LIVE_CASES = [
     # found through TMDb's alternative titles
     ("Gisaengchung.2019.1080p.mkv", "Parasite (2019) 1080p.mkv"),
     ("tt1375666.mkv", "Inception (2010).mkv"),
+    # the IMDb ID of one episode
+    ("tt0959621.mkv", "Breaking Bad (2008) S01E01.mkv"),
 ]
 
 # (folder, file) -> the file's new name: names that only make sense with their folder
@@ -59,6 +65,7 @@ LIVE_FOLDER_CASES = [
     ),
     ("Breaking Bad/Season 1", "S01E01.Pilot.mkv", "Breaking Bad (2008) S01E01.Pilot.mkv"),
     ("The.Office.2005.S01.720p", "The.Office.S01E02.720p.mkv", "The Office (2005) S01E02.720p.mkv"),
+    ("Breaking Bad/Season 2", "05.mkv", "Breaking Bad (2008) S02E05.mkv"),
 ]
 
 
@@ -104,6 +111,47 @@ def test_live_imdb_id_in_nfo(tmp_path: Path) -> None:
         "Interstellar (2014).mkv",
         "Interstellar (2014).nfo",
     ]
+
+
+@pytest.mark.usefixtures("live")
+def test_live_episode_titles(tmp_path: Path) -> None:
+    (tmp_path / "Breaking.Bad.S01E01.720p.HDTV.mkv").write_bytes(b"")
+
+    result = CliRunner().invoke(main, ["--episode-titles", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert [p.name for p in tmp_path.iterdir()] == ["Breaking Bad (2008) - S01E01 - Pilot.mkv"]
+
+
+@pytest.mark.usefixtures("live")
+def test_live_disc_folder(tmp_path: Path) -> None:
+    stream = tmp_path / "Heat.1995.1080p.BluRay-GRP" / "BDMV" / "STREAM"
+    stream.mkdir(parents=True)
+    (stream / "00000.m2ts").write_bytes(b"")
+
+    result = CliRunner().invoke(main, [str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert [p.name for p in tmp_path.iterdir()] == ["Heat (1995) 1080p.BluRay-GRP"]
+
+
+@pytest.mark.usefixtures("live")
+def test_live_expired_cache_is_revalidated(monkeypatch: pytest.MonkeyPatch) -> None:
+    answers: list[bool] = []
+    real_request = REAL_REQUESTS["_request"]
+
+    def watch(*args: Any, **kwargs: Any) -> Any:
+        body, etag = real_request(*args, **kwargs)
+        answers.append(body is None)
+        return body, etag
+
+    monkeypatch.setattr(tmdb, "_request", watch)
+    first = tmdb.search("movie", "Inception", "2010", LIVE_KEY or "")
+    later = time.time() + CACHE_TTL_HIT.total_seconds() + 60
+    monkeypatch.setattr(tmdb, "time", SimpleNamespace(time=lambda: later, sleep=time.sleep))
+
+    assert tmdb.search("movie", "Inception", "2010", LIVE_KEY or "") == first
+    assert answers == [False, True], "the second request should be a 304 Not Modified"
 
 
 @pytest.mark.usefixtures("live")

@@ -154,6 +154,49 @@ def find_imdb_id(text: str) -> str | None:
     return ids.pop() if len(ids) == 1 else None
 
 
+def episode_numbers(rest: str) -> tuple[int, list[int]] | None:
+    """
+    The season and episode numbers of the marker starting `rest`:
+    "S01E05.720p" -> (1, [5]), "S01E01-E03" -> (1, [1, 2, 3]), "S02E05E06" -> (2, [5, 6]).
+    """
+    marker = EPISODE_PATTERN.match(rest)
+    if marker is None:
+        return None
+    season = int(marker["season"] or marker["x_season"])
+    first = int(marker["episode"] or marker["x_episode"])
+    more = re.match(r"(?:-?[Ee]\d{1,3})*", rest[marker.end() :])
+    tail = [int(n) for n in re.findall(r"\d+", more.group())] if more else []
+    if tail and rest[marker.end()] == "-" and tail[-1] > first:
+        return season, list(range(first, min(tail[-1], first + 9) + 1))  # a range: E01-E03
+    return season, [first, *tail]
+
+
+def air_date(rest: str) -> str | None:
+    """The air date starting `rest` ("2024.01.15.Guest"), as "2024-01-15"."""
+    m = _find_episode(rest)
+    if m and m.start() == 0 and m.re is AIR_DATE_PATTERN:
+        return f"{m['year']}-{m['month']}-{m['day']}"
+    return None
+
+
+def episode_marker(season: int, episodes: list[int]) -> str:
+    """The episode marker: "S01E05", or "S01E01-E03" for several episodes."""
+    marker = f"S{season:02d}E{episodes[0]:02d}"
+    return marker + (f"-E{episodes[-1]:02d}" if len(episodes) > 1 else "")
+
+
+def plex_episode_stem(show: str, year: str, marker: str, titles: list[str]) -> str:
+    """
+    An episode's name as Plex and Jellyfin like it:
+    "Breaking Bad (2008) - S01E01 - Pilot", "Show (2019) - S01E01-E03 - A & B & C",
+    or for a daily show "The Daily Show (1996) - 2024-01-15".
+    """
+    parts = [f"{format_title(show)} ({year})", marker]
+    if titles:
+        parts.append(" & ".join(format_title(title) for title in titles))
+    return INVALID_FILENAME_CHARS.sub("", " - ".join(parts)).strip()
+
+
 def format_title(title: str) -> str:
     """
     Make a looked-up title fit a file name without losing its structure:

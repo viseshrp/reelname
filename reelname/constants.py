@@ -69,7 +69,18 @@ GENERIC_FOLDER_PATTERN: Pattern[str] = re.compile(
 
 # Matches a season folder ("Season 01", "S01"), whose parent names the show.
 SEASON_FOLDER_PATTERN: Pattern[str] = re.compile(
-    r"^(?:(?:season|series|staffel|saison)[ ._-]*\d{1,2}|s\d{1,2})$", re.IGNORECASE
+    r"^(?:(?:season|series|staffel|saison)[ ._-]*|s)(?P<season>\d{1,2})$", re.IGNORECASE
+)
+
+# Matches a bare episode number starting a file name in a season folder:
+#   "05.mkv", "05 - Pilot.mkv", "E05.Pilot.mkv", "Episode 5.mkv"
+# Regex breakdown:
+#   ^(?:episode|ep|e)?      → Optional "Episode", "Ep" or "E"
+#   [ ._-]*                 → Optional separators
+#   (?P<episode>\d{1,2})    → One or two digits (three could be "101" = S01E01)
+#   (?![A-Za-z0-9])         → Not followed by a letter or digit
+BARE_EPISODE_PATTERN: Pattern[str] = re.compile(
+    r"^(?:episode|ep|e)?[ ._-]*(?P<episode>\d{1,2})(?![A-Za-z0-9])", re.IGNORECASE
 )
 
 # Matches a season marker anywhere in a folder name: "The.Office.US.S01.720p", "Show Season 2"

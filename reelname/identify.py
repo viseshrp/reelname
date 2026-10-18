@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from .constants import (
+    BARE_EPISODE_PATTERN,
     GENERIC_FOLDER_PATTERN,
     MATCH_SCORE_WITH_YEAR,
     SAMPLE_PATTERN,
@@ -13,7 +14,7 @@ from .constants import (
     VIDEO_EXTENSIONS,
 )
 from .parsing import ParsedName, episode_rest, find_imdb_id, parse_filename, parse_show_folder
-from .tmdb import Match, best_score, find_matches, match_imdb_id
+from .tmdb import ImdbMatch, Match, best_score, find_matches, match_imdb_id
 
 # Folders that hold drives: "/Volumes/Media" says nothing about what's on it
 _MOUNT_ROOTS = (Path("/Volumes"), Path("/mnt"), Path("/media"))
@@ -30,6 +31,8 @@ class Identified:
     rest: str
     # Where the match came from, when not the file name, e.g. "IMDb ID in Movie.nfo"
     via: str = ""
+    # The match is a TV show, and `rest` starts with the episode marker
+    is_episode: bool = False
 
 
 def _is_structure_root(folder: Path) -> bool:
@@ -69,17 +72,43 @@ def _nfo_files(file: Path) -> list[Path]:
     return nfos if _main_videos(file.parent) == [file] else []
 
 
-def _folder_imdb_ids(file: Path) -> list[tuple[str, str]]:
-    """IMDb IDs that the file's folder name or .nfo give, with where each came from."""
+def _nfo_imdb_ids(nfos: list[Path]) -> list[tuple[str, str]]:
+    """The IMDb ID in each .nfo that names exactly one, with the file it came from."""
     found = []
-    if not _is_structure_root(file.parent) and (imdb_id := find_imdb_id(file.parent.name)):
-        found.append((imdb_id, f"folder {file.parent.name}"))
-    for nfo in _nfo_files(file):
+    for nfo in nfos:
         if nfo.stat().st_size <= _MAX_NFO_BYTES:
             text = nfo.read_text(encoding="utf-8", errors="ignore")
             if imdb_id := find_imdb_id(text):
                 found.append((imdb_id, nfo.name))
     return found
+
+
+def _folder_imdb_ids(file: Path) -> list[tuple[str, str]]:
+    """IMDb IDs that the file's folder name or .nfo give, with where each came from."""
+    found = []
+    if not _is_structure_root(file.parent) and (imdb_id := find_imdb_id(file.parent.name)):
+        found.append((imdb_id, f"folder {file.parent.name}"))
+    return found + _nfo_imdb_ids(_nfo_files(file))
+
+
+def _bare_episode(file: Path, stem: str) -> str | None:
+    """
+    For "Show/Season 2/05 - Pilot.mkv", the name with a proper episode marker:
+    "S02E05 - Pilot". Only in a season folder, and only for names without a marker.
+    """
+    season = SEASON_FOLDER_PATTERN.match(file.parent.name)
+    bare = BARE_EPISODE_PATTERN.match(stem)
+    if season is None or bare is None or episode_rest(stem) is not None:
+        return None
+    return f"S{int(season['season']):02d}E{int(bare['episode']):02d}{stem[bare.end():]}"
+
+
+def _by_imdb_id(hit: ImdbMatch, rest: str, is_episode: bool, via: str) -> Identified:
+    """A file matched by IMDb ID. The ID of one episode gives a file without a marker one."""
+    if hit.season is not None and hit.episode is not None and not is_episode:
+        marker = f"S{hit.season:02d}E{hit.episode:02d}"
+        return Identified(hit.match, f"{marker} {rest}".strip(), via, is_episode=True)
+    return Identified(hit.match, rest, via, is_episode=is_episode or hit.season is not None)
 
 
 def _parse_folder(file: Path, is_episode: bool, has_title: bool) -> tuple[ParsedName, Path] | None:
@@ -129,33 +158,37 @@ def identify(file: Path, api_key: str) -> Identified | str:
     """
     Work out which movie or show `file` is, trying in turn:
       1. an IMDb ID in the file name
-      2. the file name
+      2. the file name ("Season 2/05.mkv" counts as S02E05)
       3. an IMDb ID in the folder name, or in the file's .nfo
       4. the folder name (for episodes, the show folder above "Season 01")
     A match from the folder (3, 4) must agree with the file name's title and year, if any.
     Returns why the file is skipped when nothing confirms it.
     """
     stem = os.path.splitext(file.name)[0]
-    parsed = parse_filename(stem)
-    marker_rest = episode_rest(stem)
+    parsed: ParsedName | None
+    marker_rest: str | None
+    if bare := _bare_episode(file, stem):
+        parsed, marker_rest = None, bare
+    else:
+        parsed, marker_rest = parse_filename(stem), episode_rest(stem)
     is_episode = parsed.is_episode if parsed else marker_rest is not None
     rest = parsed.rest if parsed else marker_rest or ""
 
-    if (imdb_id := find_imdb_id(stem)) and (match := match_imdb_id(imdb_id, is_episode, api_key)):
-        return Identified(match, rest, f"IMDb ID {imdb_id}")
+    if (imdb_id := find_imdb_id(stem)) and (hit := match_imdb_id(imdb_id, is_episode, api_key)):
+        return _by_imdb_id(hit, rest, is_episode, f"IMDb ID {imdb_id}")
 
     reason = "no title found"
     if parsed:
         matches = find_matches(parsed, api_key)
         if len(matches) == 1:
-            return Identified(matches[0], parsed.rest)
+            return Identified(matches[0], parsed.rest, is_episode=parsed.is_episode)
         reason = _skip_reason(matches)
 
     for imdb_id, source in _folder_imdb_ids(file):
-        if match := match_imdb_id(imdb_id, is_episode, api_key):
-            if not _agrees(parsed, match):
-                return f"{source} says {match.title} ({match.year})"
-            return Identified(match, rest, f"IMDb ID in {source}")
+        if hit := match_imdb_id(imdb_id, is_episode, api_key):
+            if not _agrees(parsed, hit.match):
+                return f"{source} says {hit.match.title} ({hit.match.year})"
+            return _by_imdb_id(hit, rest, is_episode, f"IMDb ID in {source}")
 
     if from_folder := _parse_folder(file, is_episode, parsed is not None):
         folder, folder_path = from_folder
@@ -165,8 +198,32 @@ def identify(file: Path, api_key: str) -> Identified | str:
                 return f"folder says {matches[0].title} ({matches[0].year})"
             # an obfuscated movie ("abc123.mkv") takes the release info from its folder
             keep = rest if parsed or is_episode else folder.rest
-            return Identified(matches[0], keep, f"folder {folder_path.name}")
+            return Identified(matches[0], keep, f"folder {folder_path.name}", is_episode)
         if parsed is None:
             reason = _skip_reason(matches)
 
     return reason
+
+
+def identify_disc(folder: Path, api_key: str) -> Identified | str:
+    """
+    Work out which movie a Blu-ray or DVD folder is ("Heat.1995.BluRay-GRP" holding
+    BDMV): by an IMDb ID in its name or in an .nfo inside it, then by its name.
+    Returns why the folder is skipped when nothing confirms it.
+    """
+    parsed = parse_filename(folder.name)
+    rest = parsed.rest if parsed else ""
+    ids = [(imdb_id, f"IMDb ID {imdb_id}")] if (imdb_id := find_imdb_id(folder.name)) else []
+    nfos = sorted(f for f in folder.iterdir() if f.is_file() and f.suffix.lower() == ".nfo")
+    ids += [(found, f"IMDb ID in {nfo}") for found, nfo in _nfo_imdb_ids(nfos)]
+
+    for imdb_id, via in ids:
+        if hit := match_imdb_id(imdb_id, False, api_key):
+            if not _agrees(parsed, hit.match):
+                return f"{via} says {hit.match.title} ({hit.match.year})"
+            return Identified(hit.match, rest, via)
+
+    if parsed is None or parsed.is_episode:
+        return "no movie title found"
+    matches = find_matches(parsed, api_key)
+    return Identified(matches[0], rest) if len(matches) == 1 else _skip_reason(matches)

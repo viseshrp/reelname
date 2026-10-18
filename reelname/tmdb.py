@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from contextlib import closing
 from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import os
 from pathlib import Path
 import sqlite3
 import time
-from typing import Any, Callable
+from typing import Any
 import unicodedata
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -28,7 +29,7 @@ from .constants import (
     TMDB_MAX_RETRY_DELAY,
     TMDB_RETRY_DELAY,
 )
-from .exceptions import TMDbAuthError, TMDbRequestError
+from .exceptions import TMDbAuthError, TMDbNotFoundError, TMDbRequestError
 from .parsing import ParsedName
 
 
@@ -57,6 +58,17 @@ class Match:
     year: str
     # Every name the match was scored on (title, original title)
     names: tuple[str, ...] = field(default=(), compare=False)
+    # TMDb's ID for it, for follow-up lookups like episode titles
+    tmdb_id: int | None = field(default=None, compare=False)
+
+
+@dataclass(frozen=True)
+class ImdbMatch:
+    """What an IMDb ID points at, and for a single episode its season and number."""
+
+    match: Match
+    season: int | None = None
+    episode: int | None = None
 
 
 def _retry_after(exc: HTTPError) -> float | None:
@@ -67,13 +79,17 @@ def _retry_after(exc: HTTPError) -> float | None:
         return None
 
 
-def _get(path: str, params: dict[str, str], api_key: str) -> Any:
+def _request(
+    path: str, params: dict[str, str], api_key: str, etag: str | None = None
+) -> tuple[Any, str | None]:
     """
-    GET a TMDb API path and return the decoded JSON.
+    One GET to the TMDb API. Returns the decoded JSON and its ETag. With `etag`, the
+    JSON is None when TMDb answers 304 Not Modified: the copy with that ETag is current.
 
     `api_key` may be a v3 API key or a v4 API read access token (a JWT, starting "eyJ").
     Rate limits (429), server errors and network problems are retried a couple of
-    times. Raises TMDbAuthError if TMDb rejects the key, TMDbRequestError otherwise.
+    times. Raises TMDbAuthError if TMDb rejects the key, TMDbNotFoundError for a 404,
+    and TMDbRequestError otherwise.
     """
     params = dict(params)
     headers = {"Accept": "application/json"}
@@ -81,6 +97,8 @@ def _get(path: str, params: dict[str, str], api_key: str) -> Any:
         headers["Authorization"] = f"Bearer {api_key}"
     else:
         params["api_key"] = api_key
+    if etag:
+        headers["If-None-Match"] = etag
     url = f"{TMDB_API_URL}{path}?{urlencode(params)}"
 
     attempt = 1
@@ -90,9 +108,14 @@ def _get(path: str, params: dict[str, str], api_key: str) -> Any:
         try:
             with urlopen(request, timeout=10) as response:  # noqa: S310
                 payload = json.load(response)
+                new_etag = response.headers.get("ETag")
         except HTTPError as exc:
+            if exc.code == 304:
+                return None, etag
             if exc.code == 401:
                 raise TMDbAuthError from exc
+            if exc.code == 404:
+                raise TMDbNotFoundError(str(exc)) from exc
             retryable = exc.code == 429 or exc.code >= 500
             if not retryable or attempt == TMDB_ATTEMPTS:
                 raise TMDbRequestError(str(exc)) from exc
@@ -104,9 +127,128 @@ def _get(path: str, params: dict[str, str], api_key: str) -> Any:
         except ValueError as exc:  # not JSON
             raise TMDbRequestError(str(exc)) from exc
         else:
-            return payload
+            return payload, new_etag
         time.sleep(min(delay, TMDB_MAX_RETRY_DELAY))
         attempt += 1
+
+
+def cache_path() -> Path:
+    """Where TMDb responses are cached: $REELNAME_CACHE_DIR, else the user cache directory."""
+    if custom := os.environ.get("REELNAME_CACHE_DIR"):
+        return Path(custom) / "tmdb.sqlite3"
+    base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    return base / "reelname" / "tmdb.sqlite3"
+
+
+@dataclass(frozen=True)
+class _Entry:
+    """A cached TMDb response."""
+
+    fetched_at: float
+    body: Any
+    etag: str | None
+
+
+def _connect() -> sqlite3.Connection:
+    path = cache_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path, timeout=5)
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS http_cache"
+        " (key TEXT PRIMARY KEY, fetched_at REAL NOT NULL, body TEXT NOT NULL, etag TEXT)"
+    )
+    return db
+
+
+def _read_entry(key: str) -> _Entry | None:
+    with closing(_connect()) as db:
+        row = db.execute(
+            "SELECT fetched_at, body, etag FROM http_cache WHERE key = ?", (key,)
+        ).fetchone()
+    return _Entry(row[0], json.loads(row[1]), row[2]) if row else None
+
+
+def _write_entry(key: str, body: Any, etag: str | None) -> None:
+    with closing(_connect()) as db, db:
+        db.execute(
+            "INSERT OR REPLACE INTO http_cache VALUES (?, ?, ?, ?)",
+            (key, time.time(), json.dumps(body), etag),
+        )
+
+
+def _is_empty(body: Any) -> bool:
+    """No results: a search that found nothing, a /find with no matches."""
+    if isinstance(body, dict):
+        if "results" in body:
+            return not body["results"]
+        lists = [value for value in body.values() if isinstance(value, list)]
+        return bool(lists) and not any(lists)
+    return not body
+
+
+def _is_fresh(entry: _Entry) -> bool:
+    ttl = CACHE_TTL_MISS if _is_empty(entry.body) else CACHE_TTL_HIT
+    return time.time() - entry.fetched_at < ttl.total_seconds()
+
+
+_cache_warning_shown = False
+_stale_warning_shown = False
+
+
+def _warn_cache_unavailable(exc: Exception) -> None:
+    global _cache_warning_shown
+    if not _cache_warning_shown:
+        click.echo(f"⚠️ TMDb cache unavailable, searching without it: {exc}")
+        _cache_warning_shown = True
+
+
+def _warn_stale(entry: _Entry, exc: Exception) -> None:
+    global _stale_warning_shown
+    if not _stale_warning_shown:
+        cached_on = datetime.fromtimestamp(entry.fetched_at).date().isoformat()
+        click.echo(f"⚠️ TMDb unreachable ({exc}), using answers cached as far back as {cached_on}")
+        _stale_warning_shown = True
+
+
+def _get(path: str, params: dict[str, str], api_key: str) -> Any:
+    """
+    GET a TMDb API path through the on-disk cache, so re-runs and watch mode don't
+    repeat requests:
+      - A fresh cached answer is used as is (for a week, or a day if it was empty).
+      - An expired one is revalidated with its ETag: if it's unchanged, TMDb only
+        answers "304 Not Modified".
+      - If TMDb can't be reached, an expired answer is used rather than none.
+    Failed requests aren't cached.
+    """
+    # The search text's case doesn't change TMDb's answer
+    normalized = {k: v.casefold() if k == "query" else v for k, v in params.items()}
+    key = json.dumps([path, sorted(normalized.items())])
+
+    entry = None
+    try:
+        entry = _read_entry(key)
+    except (OSError, sqlite3.Error) as exc:
+        _warn_cache_unavailable(exc)
+    if entry and _is_fresh(entry):
+        return entry.body
+
+    try:
+        body, etag = _request(path, params, api_key, entry.etag if entry else None)
+    except TMDbNotFoundError:
+        raise
+    except TMDbRequestError as exc:
+        if entry is None:
+            raise
+        _warn_stale(entry, exc)
+        return entry.body
+    if body is None and entry is not None:  # 304 Not Modified
+        body = entry.body
+
+    try:
+        _write_entry(key, body, etag)
+    except (OSError, sqlite3.Error) as exc:
+        _warn_cache_unavailable(exc)
+    return body
 
 
 def search(kind: str, query: str, year: str | None, api_key: str) -> list[dict[str, Any]]:
@@ -135,98 +277,20 @@ def alternative_titles(kind: str, tmdb_id: int, api_key: str) -> list[str]:
     return [entry["title"] for entry in entries if entry.get("title")]
 
 
-def cache_path() -> Path:
-    """Where TMDb responses are cached: $REELNAME_CACHE_DIR, else the user cache directory."""
-    if custom := os.environ.get("REELNAME_CACHE_DIR"):
-        return Path(custom) / "tmdb.sqlite3"
-    base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-    return base / "reelname" / "tmdb.sqlite3"
+def tv_show(tmdb_id: int, api_key: str) -> dict[str, Any]:
+    """A TV show's details: name, original name, first air date..."""
+    details: dict[str, Any] = _get(f"tv/{tmdb_id}", {}, api_key)
+    return details
 
 
-def _connect() -> sqlite3.Connection:
-    path = cache_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path, timeout=5)
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS responses"
-        " (key TEXT PRIMARY KEY, fetched_at REAL NOT NULL, body TEXT NOT NULL)"
-    )
-    return db
-
-
-def _is_empty(value: Any) -> bool:
-    # a /find response is a dict of result lists
-    return not (any(value.values()) if isinstance(value, dict) else value)
-
-
-def _read_cache(key: str) -> Any:
-    with closing(_connect()) as db:
-        row = db.execute("SELECT fetched_at, body FROM responses WHERE key = ?", (key,)).fetchone()
-    if row is None:
+def episode_title(show_id: int, season: int, episode: int, api_key: str) -> str | None:
+    """An episode's title, or None if TMDb doesn't list that episode."""
+    try:
+        data = _get(f"tv/{show_id}/season/{season}/episode/{episode}", {}, api_key)
+    except TMDbNotFoundError:
         return None
-    fetched_at, body = row
-    value = json.loads(body)
-    ttl = CACHE_TTL_MISS if _is_empty(value) else CACHE_TTL_HIT
-    return value if time.time() - fetched_at < ttl.total_seconds() else None
-
-
-def _write_cache(key: str, value: Any) -> None:
-    with closing(_connect()) as db, db:
-        db.execute(
-            "INSERT OR REPLACE INTO responses VALUES (?, ?, ?)",
-            (key, time.time(), json.dumps(value)),
-        )
-
-
-_cache_warning_shown = False
-
-
-def _warn_cache_unavailable(exc: Exception) -> None:
-    global _cache_warning_shown
-    if not _cache_warning_shown:
-        click.echo(f"⚠️ TMDb cache unavailable, searching without it: {exc}")
-        _cache_warning_shown = True
-
-
-def _cached(key: list[Any], fetch: Callable[[], Any]) -> Any:
-    """
-    `fetch()`, answered from the on-disk cache when it holds a fresh response, so
-    re-runs and watch mode don't repeat requests. Failed requests aren't cached.
-    """
-    cache_key = json.dumps(key)
-    try:
-        cached = _read_cache(cache_key)
-    except (OSError, sqlite3.Error) as exc:
-        _warn_cache_unavailable(exc)
-        return fetch()
-    if cached is not None:
-        return cached
-
-    value = fetch()
-    try:
-        _write_cache(cache_key, value)
-    except (OSError, sqlite3.Error) as exc:
-        _warn_cache_unavailable(exc)
-    return value
-
-
-def cached_search(kind: str, query: str, year: str | None, api_key: str) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = _cached(
-        ["search", kind, query.casefold(), year], lambda: search(kind, query, year, api_key)
-    )
-    return results
-
-
-def cached_find(imdb_id: str, api_key: str) -> dict[str, Any]:
-    found: dict[str, Any] = _cached(["find", imdb_id], lambda: find(imdb_id, api_key))
-    return found
-
-
-def cached_alternative_titles(kind: str, tmdb_id: int, api_key: str) -> list[str]:
-    titles: list[str] = _cached(
-        ["alternative_titles", kind, tmdb_id], lambda: alternative_titles(kind, tmdb_id, api_key)
-    )
-    return titles
+    title = data.get("name")
+    return title if isinstance(title, str) and title else None
 
 
 def _fold(text: str) -> str:
@@ -280,7 +344,8 @@ def _score(parsed: ParsedName, match: Match) -> float:
 def _to_match(result: dict[str, Any], fields: _Fields) -> Match | None:
     names = tuple(n for n in (result.get(fields.title), result.get(fields.original_title)) if n)
     year = (result.get(fields.date) or "")[:4]
-    return Match(names[0], year, names) if names and year else None
+    tmdb_id = result.get("id") if isinstance(result.get("id"), int) else None
+    return Match(names[0], year, names, tmdb_id) if names and year else None
 
 
 def _pick(parsed: ParsedName, scored: list[tuple[float, Match]]) -> list[Match]:
@@ -310,7 +375,7 @@ def find_matches(parsed: ParsedName, api_key: str) -> list[Match]:
     fields = _FIELDS[kind]
 
     candidates: list[tuple[dict[str, Any], Match]] = []
-    for result in cached_search(kind, parsed.title, parsed.year, api_key):
+    for result in search(kind, parsed.title, parsed.year, api_key):
         match = _to_match(result, fields)
         if match and (not parsed.year or match.year == parsed.year):
             candidates.append((result, match))
@@ -319,15 +384,31 @@ def find_matches(parsed: ParsedName, api_key: str) -> list[Match]:
         return matches
 
     scored = [
-        (best_score(parsed.title, cached_alternative_titles(kind, result["id"], api_key)), match)
+        (best_score(parsed.title, alternative_titles(kind, result["id"], api_key)), match)
         for result, match in candidates[:ALTERNATIVE_TITLE_CANDIDATES]
         if isinstance(result.get("id"), int)
     ]
     return _pick(parsed, scored)
 
 
-def match_imdb_id(imdb_id: str, is_episode: bool, api_key: str) -> Match | None:
-    """The movie (or, for an episode, the TV show) an IMDb ID points at, if any."""
-    fields = _FIELDS["tv" if is_episode else "movie"]
-    results = cached_find(imdb_id, api_key).get(fields.find_results) or []
-    return _to_match(results[0], fields) if results else None
+def match_imdb_id(imdb_id: str, is_episode: bool, api_key: str) -> ImdbMatch | None:
+    """
+    What an IMDb ID points at: a movie, or for an episode file a TV show. The ID of a
+    single episode leads to its show, with that episode's season and number.
+    """
+    found = find(imdb_id, api_key)
+    movies, shows = found.get("movie_results") or [], found.get("tv_results") or []
+    if not is_episode and movies:
+        match = _to_match(movies[0], _FIELDS["movie"])
+        return ImdbMatch(match) if match else None
+    if is_episode and shows:
+        match = _to_match(shows[0], _FIELDS["tv"])
+        return ImdbMatch(match) if match else None
+    if episodes := found.get("tv_episode_results"):
+        episode = episodes[0]
+        if not isinstance(episode.get("show_id"), int):
+            return None
+        match = _to_match(tv_show(episode["show_id"], api_key), _FIELDS["tv"])
+        if match:
+            return ImdbMatch(match, episode.get("season_number"), episode.get("episode_number"))
+    return None

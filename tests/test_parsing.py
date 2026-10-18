@@ -5,13 +5,17 @@ import os
 import pytest
 
 from reelname.parsing import (
+    air_date,
     build_stem,
+    episode_marker,
+    episode_numbers,
     episode_rest,
     find_imdb_id,
     fit_stem,
     format_title,
     parse_filename,
     parse_show_folder,
+    plex_episode_stem,
 )
 
 from .data import EXTRACT_CASES, MOVIE_RENAME_CASES, TV_RENAME_CASES, YEARLESS_YEAR
@@ -134,3 +138,47 @@ def test_fit_stem_keeps_names_within_255_bytes() -> None:
     assert fitted.startswith("Amélie (2001) 1080p")
     assert not fitted.endswith(".")
     assert fit_stem("Inception (2010)", ".mkv") == "Inception (2010)"
+
+
+@pytest.mark.parametrize(
+    "rest, expected",
+    [
+        ("S01E05.720p.HDTV", (1, [5])),
+        ("S01E01-E03.1080p", (1, [1, 2, 3])),
+        ("S02E05E06.720p", (2, [5, 6])),
+        ("1x07.Rose", (1, [7])),
+        ("2024.01.15.Guest", None),
+    ],
+)
+def test_episode_numbers(rest: str, expected: tuple[int, list[int]] | None) -> None:
+    assert episode_numbers(rest) == expected
+
+
+@pytest.mark.parametrize(
+    "rest, expected",
+    [("2024.01.15.Guest.720p", "2024-01-15"), ("S01E05", None), ("2024.13.45", None)],
+)
+def test_air_date(rest: str, expected: str | None) -> None:
+    assert air_date(rest) == expected
+
+
+@pytest.mark.parametrize(
+    "marker, titles, expected",
+    [
+        ("S01E01", ["Pilot"], "Breaking Bad (2008) - S01E01 - Pilot"),
+        (
+            "S01E01-E02",
+            ["Pilot", "Cat's in the Bag..."],
+            "Breaking Bad (2008) - S01E01-E02 - Pilot & Cat's in the Bag",
+        ),
+        ("S01E01", [], "Breaking Bad (2008) - S01E01"),
+        ("2024-01-15", [], "Breaking Bad (2008) - 2024-01-15"),
+    ],
+)
+def test_plex_episode_stem(marker: str, titles: list[str], expected: str) -> None:
+    assert plex_episode_stem("Breaking Bad", "2008", marker, titles) == expected
+
+
+def test_episode_marker() -> None:
+    assert episode_marker(1, [5]) == "S01E05"
+    assert episode_marker(1, [1, 2, 3]) == "S01E01-E03"

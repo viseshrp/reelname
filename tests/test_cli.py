@@ -282,7 +282,8 @@ def test_recursive_renames_below_but_not_inside_discs_or_hidden_folders(tmp_path
     assert result.exit_code == 0, result.output
     assert names(tmp_path / "a") == ["Inception (2010).mkv"]
     assert names(tmp_path / ".hidden") == ["Interstellar.2014.mkv"]
-    assert names(tmp_path / "Heat.1995.BluRay" / "BDMV" / "STREAM") == ["Heat.1995.m2ts"]
+    # the disc folder is renamed whole; nothing inside it is
+    assert names(tmp_path / "Heat (1995) BluRay" / "BDMV" / "STREAM") == ["Heat.1995.m2ts"]
 
 
 def test_without_recursive_subfolders_are_left_alone(tmp_path: Path) -> None:
@@ -419,3 +420,136 @@ def test_output_on_another_drive_is_copied_then_removed(
     assert result.exit_code == 0, result.output
     assert names(downloads) == []
     assert (library / "Inception (2010).mkv").read_text() == "video"
+
+
+BREAKING_BAD = [{"id": 1396, "name": "Breaking Bad", "first_air_date": "2008-01-20"}]
+
+
+def test_episode_titles_name_episodes_plex_style(tmp_path: Path, fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.results["Breaking Bad"] = BREAKING_BAD
+    fake_tmdb.episodes[(1396, 1, 1)] = "Pilot"
+    fake_tmdb.episodes[(1396, 1, 2)] = "Cat's in the Bag..."
+    touch(tmp_path / "Breaking.Bad.S01E01.720p.HDTV.x264.mkv")
+    touch(tmp_path / "Breaking.Bad.S01E01.720p.HDTV.x264.en.srt")
+    touch(tmp_path / "Breaking.Bad.S01E02-E03.720p.mkv")
+
+    result = CliRunner().invoke(main, ["--episode-titles", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert names(tmp_path) == [
+        "Breaking Bad (2008) - S01E01 - Pilot.en.srt",
+        "Breaking Bad (2008) - S01E01 - Pilot.mkv",
+        # TMDb doesn't list episode 3, so only episode 2's title is used
+        "Breaking Bad (2008) - S01E02-E03 - Cat's in the Bag.mkv",
+    ]
+
+
+def test_episode_titles_convert_reelname_style_episodes(
+    tmp_path: Path, fake_tmdb: FakeTMDb
+) -> None:
+    fake_tmdb.results["Breaking Bad"] = BREAKING_BAD
+    fake_tmdb.episodes[(1396, 1, 1)] = "Pilot"
+    touch(tmp_path / "Breaking Bad (2008) S01E01.720p.mkv")
+    touch(tmp_path / "Breaking Bad (2008) - S01E02 - Cat's in the Bag.mkv")
+
+    CliRunner().invoke(main, ["--episode-titles", str(tmp_path)])
+
+    assert names(tmp_path) == [
+        "Breaking Bad (2008) - S01E01 - Pilot.mkv",
+        "Breaking Bad (2008) - S01E02 - Cat's in the Bag.mkv",
+    ]
+
+
+def test_without_episode_titles_nothing_extra_is_looked_up(
+    tmp_path: Path, fake_tmdb: FakeTMDb
+) -> None:
+    fake_tmdb.results["Breaking Bad"] = BREAKING_BAD
+    touch(tmp_path / "Breaking.Bad.S01E01.720p.mkv")
+
+    CliRunner().invoke(main, [str(tmp_path)])
+
+    assert names(tmp_path) == ["Breaking Bad (2008) S01E01.720p.mkv"]
+    assert [q[0] for q in fake_tmdb.queries] == ["tv"]
+
+
+def test_taken_name_holding_the_same_file_is_a_duplicate(tmp_path: Path) -> None:
+    touch(tmp_path / "Inception.2010.mkv", "the same video")
+    touch(tmp_path / "Inception (2010).mkv", "the same video")
+    touch(tmp_path / "Heat.1995.mkv", "one video")
+    touch(tmp_path / "Heat (1995).mkv", "another video")
+
+    result = CliRunner().invoke(main, [str(tmp_path)])
+
+    assert "Skipping (duplicate of Inception (2010).mkv): Inception.2010.mkv" in result.output
+    assert "Skipping (would overwrite Heat (1995).mkv): Heat.1995.mkv" in result.output
+
+
+def test_big_files_differing_in_the_middle_are_not_duplicates(tmp_path: Path) -> None:
+    size = 8 << 20
+    a, b = bytearray(size), bytearray(size)
+    b[size // 2] = 1
+    (tmp_path / "Inception.2010.mkv").write_bytes(bytes(a))
+    (tmp_path / "Inception (2010).mkv").write_bytes(bytes(b))
+
+    result = CliRunner().invoke(main, [str(tmp_path)])
+
+    assert "would overwrite Inception (2010).mkv" in result.output
+
+
+def disc(path: Path, kind: str = "BDMV") -> Path:
+    touch(path / kind / "STREAM" / "00000.m2ts")
+    return path
+
+
+def test_disc_folder_is_renamed_whole(tmp_path: Path) -> None:
+    disc(tmp_path / "Heat.1995.1080p.BluRay-GRP")
+    disc(tmp_path / "The.Matrix.1999.DVD", "VIDEO_TS")
+
+    result = CliRunner().invoke(main, [str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert names(tmp_path) == ["Heat (1995) 1080p.BluRay-GRP", "The Matrix (1999) DVD"]
+    assert names(tmp_path / "Heat (1995) 1080p.BluRay-GRP" / "BDMV" / "STREAM") == ["00000.m2ts"]
+
+
+def test_disc_folder_found_by_imdb_id_in_its_nfo(tmp_path: Path, fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.imdb["tt0113277"] = {
+        "movie_results": [{"title": "Heat", "release_date": "1995-12-15"}]
+    }
+    folder = disc(tmp_path / "DISC_01")
+    touch(folder / "info.nfo", "https://www.imdb.com/title/tt0113277/")
+
+    CliRunner().invoke(main, [str(tmp_path)])
+
+    assert names(tmp_path) == ["Heat (1995)"]
+
+
+def test_plain_folders_are_not_discs(tmp_path: Path) -> None:
+    touch(tmp_path / "Heat.1995.1080p.BluRay-GRP" / "Heat.1995.1080p.mkv")
+
+    CliRunner().invoke(main, [str(tmp_path)])
+
+    assert names(tmp_path) == ["Heat.1995.1080p.BluRay-GRP"]
+
+
+def test_disc_folders_cannot_be_hardlinked(tmp_path: Path) -> None:
+    disc(tmp_path / "Heat.1995.BluRay")
+
+    result = CliRunner().invoke(main, ["--hardlink", str(tmp_path)])
+
+    assert names(tmp_path) == ["Heat.1995.BluRay"]
+    assert "a folder can't be hardlinked" in result.output
+
+
+def test_disc_folder_into_output_and_back(tmp_path: Path) -> None:
+    downloads, library = tmp_path / "downloads", tmp_path / "library"
+    disc(downloads / "Heat.1995.BluRay")
+    library.mkdir()
+
+    CliRunner().invoke(main, ["-o", str(library), str(downloads)])
+    assert names(library) == ["Heat (1995) BluRay"]
+    assert names(downloads) == []
+
+    CliRunner().invoke(main, ["--undo", str(downloads)])
+    assert names(downloads) == ["Heat.1995.BluRay"]
+    assert names(library) == []

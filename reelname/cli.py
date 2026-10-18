@@ -46,6 +46,12 @@ UNDO_EXCLUSIVE = "--undo only combines with --dry-run."
     help="Add the new name as a hardlink and keep the original (e.g. while seeding)",
 )
 @click.option(
+    "--episode-titles",
+    is_flag=True,
+    default=False,
+    help="Name episodes Plex style, with their title: 'Show (2008) - S01E01 - Pilot'",
+)
+@click.option(
     "-n",
     "--dry-run",
     is_flag=True,
@@ -71,6 +77,7 @@ def main(
     recursive: bool,
     output: Path | None,
     hardlink: bool,
+    episode_titles: bool,
     dry_run: bool,
     undo: bool,
 ) -> None:
@@ -87,12 +94,13 @@ def main(
       reelname /path/to/media
       reelname -n /path/to/media
       reelname -r -o /path/to/library --hardlink /path/to/downloads
+      reelname --episode-titles /path/to/shows
       reelname -w /path/to/media
       reelname --undo /path/to/media
     """
     if watch and (dry_run or undo):
         raise click.UsageError(WATCH_EXCLUSIVE)
-    if undo and (watch or recursive or output or hardlink):
+    if undo and (watch or recursive or output or hardlink or episode_titles):
         raise click.UsageError(UNDO_EXCLUSIVE)
     if not directory:
         directory = "."
@@ -103,7 +111,13 @@ def main(
     api_key = os.environ.get("TMDB_API_KEY")
     if not api_key:
         raise click.UsageError(MISSING_API_KEY)
-    options = Options(dry_run=dry_run, recursive=recursive, output=output, hardlink=hardlink)
+    options = Options(
+        dry_run=dry_run,
+        recursive=recursive,
+        output=output,
+        hardlink=hardlink,
+        episode_titles=episode_titles,
+    )
     try:
         if watch:
             watch_directory(directory, api_key, options)

@@ -33,3 +33,11 @@ class TMDbRequestError(ReelNameError):
     """
 
     detail = "TMDb lookup failed."
+
+
+class TMDbNotFoundError(TMDbRequestError):
+    """
+    TMDb doesn't have what was asked for (HTTP 404), like an episode it doesn't list.
+    """
+
+    detail = "Not found on TMDb."

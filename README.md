@@ -48,6 +48,13 @@ reelname /path/to/media
 reelname -r --hardlink -o /path/to/library /path/to/downloads
 ```
 
+* Name episodes the way Plex and Jellyfin like them, with their titles
+  (`Breaking Bad (2008) - S01E01 - Pilot.mkv`):
+
+```bash
+reelname --episode-titles /path/to/shows
+```
+
 * Changed your mind? Undo the last run in that folder:
 
 ```bash
@@ -67,8 +74,9 @@ reelname --help
 * Finds the title even without a year (`Dune.Part.Two.1080p.mkv`), and tells
   real years from numbers in titles (`Blade.Runner.2049.2017`).
 * Uses more than the file name when it has to: an IMDb ID in the name or in an
-  `.nfo` file, the release folder (`Inception.2010.1080p-GRP/abc123.mkv`), or
-  the show folder (`Breaking Bad/Season 1/S01E01.mkv`).
+  `.nfo` file (a movie's, a show's or an episode's), the release folder
+  (`Inception.2010.1080p-GRP/abc123.mkv`), or the show folder
+  (`Breaking Bad/Season 1/S01E01.mkv`, even `Breaking Bad/Season 2/05.mkv`).
 * Matches original and alternative titles (`Gisaengchung` → `Parasite`),
   ignores accents (`Amelie` → `Amélie`), and finds long titles from their start
   (`Birdman` → `Birdman or (The Unexpected Virtue of Ignorance)`).
@@ -79,9 +87,12 @@ reelname --help
 * Leaves a file alone when TMDb doesn't confirm it, or when the name could be
   more than one title (like a remake).
 * Never overwrites an existing file.
-* Never renames inside Blu-ray or DVD folders (`BDMV`, `VIDEO_TS`).
-* Caches TMDb searches, retries when TMDb is busy, and in watch mode waits for
-  files to finish copying.
+* Renames a Blu-ray or DVD folder as a whole (`Heat (1995) BluRay`), and never
+  anything inside it.
+* Says when a name is taken by an identical file (`duplicate of …`).
+* Caches TMDb answers, revalidates them cheaply when they expire, falls back
+  to them when TMDb is unreachable, retries when TMDb is busy, and in watch
+  mode waits for files and folders to finish copying.
 * Logs every rename, so `--undo` can put names back.
 
 Searches are cached in `~/.cache/reelname` and the rename history is kept in

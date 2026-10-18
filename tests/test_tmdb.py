@@ -3,6 +3,7 @@ from __future__ import annotations
 from email.message import Message
 import io
 from pathlib import Path
+import time
 from types import SimpleNamespace
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -12,14 +13,26 @@ import pytest
 
 from reelname import tmdb
 from reelname.constants import CACHE_TTL_HIT, CACHE_TTL_MISS
-from reelname.exceptions import TMDbAuthError, TMDbRequestError
+from reelname.exceptions import TMDbAuthError, TMDbNotFoundError, TMDbRequestError
 from reelname.parsing import ParsedName
 from reelname.tmdb import Match, find_matches, get_match_score
 
 from .conftest import FakeTMDb
 
-# Bound at import, before the autouse fixture replaces tmdb.search with a fake.
-real_search = tmdb.search
+# Bound at import, before the autouse fixture replaces tmdb._request with a fake.
+real_request = tmdb._request
+
+SEARCH_INCEPTION = ("search/movie", {"query": "Inception", "year": "2010"})
+
+
+class _Response(io.BytesIO):
+    """What urlopen returns: a body, and headers."""
+
+    def __init__(self, body: bytes, etag: str | None = None) -> None:
+        super().__init__(body)
+        self.headers = Message()
+        if etag:
+            self.headers["ETag"] = etag
 
 
 def movie(title: str, year: str | None = None) -> ParsedName:
@@ -100,7 +113,7 @@ def test_search_is_cached(fake_tmdb: FakeTMDb) -> None:
     [([{"title": "Inception", "release_date": "2010-07-15"}], CACHE_TTL_HIT), ([], CACHE_TTL_MISS)],
     ids=["hit", "miss"],
 )
-def test_cached_search_expires(
+def test_cache_expires(
     fake_tmdb: FakeTMDb,
     monkeypatch: pytest.MonkeyPatch,
     results: list[dict[str, str]],
@@ -109,14 +122,14 @@ def test_cached_search_expires(
     fake_tmdb.results["Inception"] = results
     now = 1_000_000.0
     monkeypatch.setattr(tmdb, "time", SimpleNamespace(time=lambda: now))
-    tmdb.cached_search("movie", "Inception", "2010", "key")
+    tmdb.search("movie", "Inception", "2010", "key")
 
     now += ttl.total_seconds() - 1
-    tmdb.cached_search("movie", "Inception", "2010", "key")
+    tmdb.search("movie", "Inception", "2010", "key")
     assert len(fake_tmdb.queries) == 1, "still fresh"
 
     now += 2
-    tmdb.cached_search("movie", "Inception", "2010", "key")
+    tmdb.search("movie", "Inception", "2010", "key")
     assert len(fake_tmdb.queries) == 2, "expired"
 
 
@@ -132,20 +145,21 @@ def test_unusable_cache_falls_back_to_searching(
     assert len(fake_tmdb.queries) == 1
 
 
-def _capture_urlopen(seen: dict[str, Any], body: bytes) -> Any:
-    def fake_urlopen(request: Request, **_kwargs: Any) -> io.BytesIO:
+def _capture_urlopen(seen: dict[str, Any], body: bytes, etag: str | None = None) -> Any:
+    def fake_urlopen(request: Request, **_kwargs: Any) -> _Response:
         seen["url"] = request.full_url
         seen["auth"] = request.get_header("Authorization")
-        return io.BytesIO(body)
+        seen["if_none_match"] = request.get_header("If-none-match")
+        return _Response(body, etag)
 
     return fake_urlopen
 
 
-def test_search_sends_v3_key_as_query_param(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_request_sends_v3_key_as_query_param(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, Any] = {}
-    monkeypatch.setattr(tmdb, "urlopen", _capture_urlopen(seen, b'{"results": [{"id": 1}]}'))
+    monkeypatch.setattr(tmdb, "urlopen", _capture_urlopen(seen, b'{"results": [1]}', 'W/"a"'))
 
-    assert real_search("movie", "Inception", "2010", "v3key") == [{"id": 1}]
+    assert real_request(*SEARCH_INCEPTION, "v3key") == ({"results": [1]}, 'W/"a"')
     assert seen["url"].startswith("https://api.themoviedb.org/3/search/movie?")
     assert "query=Inception" in seen["url"]
     assert "year=2010" in seen["url"]
@@ -153,35 +167,107 @@ def test_search_sends_v3_key_as_query_param(monkeypatch: pytest.MonkeyPatch) -> 
     assert seen["auth"] is None
 
 
-def test_search_sends_read_access_token_as_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_request_sends_read_access_token_as_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, Any] = {}
     monkeypatch.setattr(tmdb, "urlopen", _capture_urlopen(seen, b'{"results": []}'))
 
-    assert real_search("movie", "Inception", "2010", "eyJtoken") == []
+    real_request(*SEARCH_INCEPTION, "eyJtoken")
     assert "api_key" not in seen["url"]
     assert seen["auth"] == "Bearer eyJtoken"
 
 
-def test_search_tv_filters_by_first_air_year(monkeypatch: pytest.MonkeyPatch) -> None:
-    seen: dict[str, Any] = {}
-    monkeypatch.setattr(tmdb, "urlopen", _capture_urlopen(seen, b'{"results": []}'))
+def test_search_tv_filters_by_first_air_year(
+    fake_tmdb: FakeTMDb, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, dict[str, str]]] = []
 
-    real_search("tv", "The Studio", "2025", "key")
-    assert seen["url"].startswith("https://api.themoviedb.org/3/search/tv?")
-    assert "first_air_date_year=2025" in seen["url"]
+    def capture(path: str, params: dict[str, str], *_args: Any) -> tuple[Any, None]:
+        calls.append((path, params))
+        return {"results": []}, None
 
-    real_search("tv", "The Studio", None, "key")
-    assert "first_air_date_year" not in seen["url"]
+    monkeypatch.setattr(tmdb, "_request", capture)
+    tmdb.search("tv", "The Studio", "2025", "key")
+    tmdb.search("tv", "The Studio", None, "key")
+
+    assert calls == [
+        ("search/tv", {"query": "The Studio", "first_air_date_year": "2025"}),
+        ("search/tv", {"query": "The Studio"}),
+    ]
 
 
-def test_search_rejected_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_request_rejected_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_urlopen(request: Request, **_kwargs: Any) -> io.BytesIO:
         raise HTTPError(request.full_url, 401, "Unauthorized", Message(), None)
 
     monkeypatch.setattr(tmdb, "urlopen", fake_urlopen)
 
     with pytest.raises(TMDbAuthError):
-        real_search("movie", "Inception", "2010", "bad-key")
+        real_request(*SEARCH_INCEPTION, "bad-key")
+
+
+def test_request_revalidates_with_etag(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, Any] = {}
+
+    def not_modified(request: Request, **_kwargs: Any) -> io.BytesIO:
+        seen["if_none_match"] = request.get_header("If-none-match")
+        raise HTTPError(request.full_url, 304, "Not Modified", Message(), None)
+
+    monkeypatch.setattr(tmdb, "urlopen", not_modified)
+
+    assert real_request(*SEARCH_INCEPTION, "key", etag='W/"a"') == (None, 'W/"a"')
+    assert seen["if_none_match"] == 'W/"a"'
+
+
+def _expire_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    later = time.time() + CACHE_TTL_HIT.total_seconds() + 60
+    monkeypatch.setattr(tmdb, "time", SimpleNamespace(time=lambda: later))
+
+
+def test_expired_answer_is_revalidated_with_its_etag(
+    fake_tmdb: FakeTMDb, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[str | None] = []
+
+    def answer(_path: str, _params: dict[str, str], _key: str, etag: str | None = None) -> Any:
+        sent.append(etag)
+        if etag:
+            return None, etag  # 304 Not Modified
+        return {"results": [{"title": "Inception", "release_date": "2010-07-15"}]}, 'W/"a"'
+
+    monkeypatch.setattr(tmdb, "_request", answer)
+    first = tmdb.search("movie", "Inception", "2010", "key")
+    _expire_cache(monkeypatch)
+
+    assert tmdb.search("movie", "Inception", "2010", "key") == first
+    assert sent == [None, 'W/"a"']
+
+
+def test_expired_answer_is_used_when_tmdb_is_down(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def down(*_args: Any, **_kwargs: Any) -> Any:
+        raise TMDbRequestError("timeout")
+
+    first = tmdb.search("movie", "Inception", "2010", "key")
+    _expire_cache(monkeypatch)
+    monkeypatch.setattr(tmdb, "_request", down)
+
+    assert tmdb.search("movie", "Inception", "2010", "key") == first
+    assert "TMDb unreachable" in capsys.readouterr().out
+    with pytest.raises(TMDbRequestError):
+        tmdb.search("movie", "Never Cached", "2010", "key")
+
+
+def test_not_found_is_not_answered_from_an_old_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    def gone(*_args: Any, **_kwargs: Any) -> Any:
+        raise TMDbNotFoundError
+
+    tmdb.search("movie", "Inception", "2010", "key")
+    _expire_cache(monkeypatch)
+    monkeypatch.setattr(tmdb, "_request", gone)
+
+    with pytest.raises(TMDbNotFoundError):
+        tmdb.search("movie", "Inception", "2010", "key")
 
 
 def test_match_score_ignores_accents() -> None:
@@ -233,9 +319,21 @@ def test_match_imdb_id_picks_the_files_kind(
         "movie_results": [{"title": "Inception", "release_date": "2010-07-15"}],
         "tv_results": [{"name": "The Office", "first_air_date": "2005-03-24"}],
     }
-    match = tmdb.match_imdb_id("tt0000001", is_episode, "key")
-    assert match is not None
-    assert match.title == expected
+    hit = tmdb.match_imdb_id("tt0000001", is_episode, "key")
+    assert hit is not None
+    assert hit.match.title == expected
+
+
+@pytest.mark.parametrize("is_episode", [False, True])
+def test_episode_imdb_id_leads_to_its_show(fake_tmdb: FakeTMDb, is_episode: bool) -> None:
+    fake_tmdb.imdb["tt0959621"] = {
+        "tv_episode_results": [{"show_id": 1396, "season_number": 1, "episode_number": 1}]
+    }
+    fake_tmdb.shows[1396] = {"id": 1396, "name": "Breaking Bad", "first_air_date": "2008-01-20"}
+
+    assert tmdb.match_imdb_id("tt0959621", is_episode, "key") == tmdb.ImdbMatch(
+        Match("Breaking Bad", "2008"), season=1, episode=1
+    )
 
 
 def test_match_imdb_id_is_cached(fake_tmdb: FakeTMDb) -> None:
@@ -257,11 +355,11 @@ def _http_error(code: int, retry_after: str | None = None) -> HTTPError:
 def _flaky_urlopen(failures: list[Exception], calls: list[str]) -> Any:
     """Raise each of `failures` in turn, then answer with an empty result list."""
 
-    def fake_urlopen(request: Request, **_kwargs: Any) -> io.BytesIO:
+    def fake_urlopen(request: Request, **_kwargs: Any) -> _Response:
         calls.append(request.full_url)
         if failures:
             raise failures.pop(0)
-        return io.BytesIO(b'{"results": []}')
+        return _Response(b'{"results": []}')
 
     return fake_urlopen
 
@@ -284,7 +382,7 @@ def test_requests_are_retried(
     monkeypatch.setattr(tmdb, "urlopen", _flaky_urlopen(list(failures), calls))
     monkeypatch.setattr(tmdb, "time", SimpleNamespace(sleep=sleeps.append, time=lambda: 0.0))
 
-    assert real_search("movie", "Inception", "2010", "key") == []
+    assert real_request(*SEARCH_INCEPTION, "key") == ({"results": []}, None)
     assert sleeps == expected_sleeps
     assert len(calls) == len(expected_sleeps) + 1
 
@@ -305,7 +403,7 @@ def test_requests_fail_eventually(
     monkeypatch.setattr(tmdb, "time", SimpleNamespace(sleep=lambda _s: None, time=lambda: 0.0))
 
     with pytest.raises(TMDbRequestError):
-        real_search("movie", "Inception", "2010", "key")
+        real_request(*SEARCH_INCEPTION, "key")
     assert len(calls) == len(failures)
 
 

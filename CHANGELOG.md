@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   new name as a hardlink so the original stays (e.g. while seeding). `--undo`
   removes such links again.
 - Daily shows named by air date (`Show.2024.01.15`) are recognised as episodes.
+- `--episode-titles` names episodes Plex style with their titles from TMDb:
+  `Breaking Bad (2008) - S01E01 - Pilot.mkv`.
+- A bare episode number in a season folder (`Show/Season 2/05.mkv`) is read
+  as that episode (`S02E05`).
+- The IMDb ID of a single episode leads to its show and episode.
+- Blu-ray and DVD folders (holding `BDMV` or `VIDEO_TS`) are renamed whole.
+- A name taken by an identical file is reported as a duplicate.
+- Expired cached TMDb answers are revalidated with their ETag, and used as they
+  are when TMDb can't be reached.
 
 ### Changed
 

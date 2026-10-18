@@ -178,3 +178,47 @@ def test_bare_episode_needs_a_clear_show_folder(
     rename(episode.parent)
 
     assert names(episode.parent) == [renamed or episode.name]
+
+
+@pytest.mark.parametrize(
+    "name, renamed",
+    [
+        ("05.mkv", "Breaking Bad (2024) S02E05.mkv"),
+        ("05 - Pilot.mkv", "Breaking Bad (2024) S02E05 - Pilot.mkv"),
+        ("E05.Pilot.720p.mkv", "Breaking Bad (2024) S02E05.Pilot.720p.mkv"),
+        ("Episode 5.mkv", "Breaking Bad (2024) S02E05.mkv"),
+    ],
+)
+def test_bare_episode_number_in_season_folder(tmp_path: Path, name: str, renamed: str) -> None:
+    season = tmp_path / "Breaking Bad" / "Season 2"
+    touch(season / name)
+
+    rename(season)
+
+    assert names(season) == [renamed]
+
+
+@pytest.mark.parametrize("folder", ["Breaking Bad", "The.Office.US.S01.720p"])
+def test_bare_number_outside_a_season_folder_is_not_an_episode(
+    tmp_path: Path, fake_tmdb: FakeTMDb, folder: str
+) -> None:
+    show = tmp_path / folder
+    touch(show / "05.mkv")
+
+    rename(show)
+
+    assert names(show) == ["05.mkv"]
+    assert fake_tmdb.queries == []
+
+
+def test_episode_imdb_id_gives_a_file_its_episode(tmp_path: Path, fake_tmdb: FakeTMDb) -> None:
+    fake_tmdb.imdb["tt0959621"] = {
+        "tv_episode_results": [{"show_id": 1396, "season_number": 1, "episode_number": 1}]
+    }
+    fake_tmdb.shows[1396] = {"id": 1396, "name": "Breaking Bad", "first_air_date": "2008-01-20"}
+    folder = tmp_path / "release"
+    touch(folder / "tt0959621.mkv")
+
+    rename(folder)
+
+    assert names(folder) == ["Breaking Bad (2008) S01E01.mkv"]

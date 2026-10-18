@@ -13,7 +13,10 @@ from .utils import Options, _process_files
 
 
 def _size(path: Path) -> int | None:
+    """A file's size, or everything in a folder (a disc folder still being copied grows)."""
     try:
+        if path.is_dir():
+            return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
         return path.stat().st_size
     except OSError:
         return None
@@ -47,9 +50,9 @@ class FileChangeHandler(FileSystemEventHandler):
 
     # Watchdog calls these on its own thread; hand each path to the event loop.
     def on_created(self, event: FileSystemEvent) -> None:
-        if not event.is_directory:
-            click.echo(f"🔔 Detected new file: {event.src_path!s}")
-            self.loop.call_soon_threadsafe(self._changed, Path(str(event.src_path)))
+        kind = "folder" if event.is_directory else "file"
+        click.echo(f"🔔 Detected new {kind}: {event.src_path!s}")
+        self.loop.call_soon_threadsafe(self._changed, Path(str(event.src_path)))
 
     def on_modified(self, event: FileSystemEvent) -> None:
         if not event.is_directory:
