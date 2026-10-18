@@ -33,6 +33,19 @@ pip install reelname
 export TMDB_API_KEY=your-key-or-token
 ```
 
+* Preview the renames first, then run them:
+
+```bash
+reelname --dry-run /path/to/media
+reelname /path/to/media
+```
+
+* Changed your mind? Undo the last run in that folder:
+
+```bash
+reelname --undo /path/to/media
+```
+
 * To view the help message, run the following command:
 
 ```bash
@@ -41,10 +54,22 @@ reelname --help
 
 ## 🛠️ Features
 
-* Fixes media filenames with random characters.
+* Renames movies to `Title (Year) …` and TV episodes to `Show (Year) S01E07 …`,
+  keeping the release info that follows.
+* Finds the title even without a year (`Dune.Part.Two.1080p.mkv`), and tells
+  real years from numbers in titles (`Blade.Runner.2049.2017`).
+* Renames subtitles and `.nfo` files together with their video.
+* Turns colons into dashes (`Mission - Impossible`) instead of dropping them.
 * Only renames video and subtitle files, and skips samples and trailers.
-* Leaves a file alone when TMDb doesn't confirm its title and year.
+* Leaves a file alone when TMDb doesn't confirm it, or when the name could be
+  more than one title (like a remake).
 * Never overwrites an existing file.
+* Caches TMDb searches, and in watch mode waits for files to finish copying.
+* Logs every rename, so `--undo` can put names back.
+
+Searches are cached in `~/.cache/reelname` and the rename history is kept in
+`~/.local/share/reelname` (or under `$XDG_CACHE_HOME` and `$XDG_DATA_HOME`).
+Set `REELNAME_CACHE_DIR` or `REELNAME_DATA_DIR` to use other folders.
 
 ## 🧾 Changelog
 

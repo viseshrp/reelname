@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- TV episodes: names with `S01E07` or `1x07` are looked up as TV shows and
+  renamed to `Show (Year) S01E07 …`.
+- Names without a year (`Dune.Part.Two.1080p.mkv`) are looked up too, and
+  skipped when more than one title fits.
+- Subtitles and `.nfo` files are renamed together with their video.
+- `--dry-run` shows what would be renamed without renaming anything.
+- Every rename is logged, and `--undo` renames the last run's files back.
+- TMDb searches are cached on disk for a week (a day when nothing was found).
+- Opt-in live TMDb tests: set `REELNAME_LIVE_TMDB_API_KEY` and run
+  `pytest -m integration`.
+
+### Changed
+
+- Colons in titles become ` - ` instead of being dropped.
+- Watch mode waits for files to stop changing before renaming them.
+- A leading release group (`LOL. Show.S01E01…-LOL`) is dropped from the name.
+
+### Fixed
+
+- Numbers that only look like years (`1080`, `2049` in
+  `Blade.Runner.2049.2017`) are no longer taken as the release year.
+
 ## [3.0.0] - 2026-10-18
 
 ### Changed
